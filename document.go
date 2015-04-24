@@ -12,7 +12,7 @@ func (d *Document) Poll(interval time.Duration) bool {
 	respChannel := make(chan bool, 1)
 
 	go func() {
-		respChannel <- d.IsCompleted()
+		respChannel <- d.WaitForCompletion()
 	}()
 
 	select {
@@ -31,13 +31,13 @@ func (d *Document) Poll(interval time.Duration) bool {
 
 // Update document struct (self)
 func (d *Document) Update() Document {
-	newDoc := d.Client.GetDocument(d.Links.Document)
+	newDoc := d.Client.Get(d.Links.Document)
 	return newDoc
 }
 
-func (d *Document) IsCompleted() bool {
+func (d *Document) WaitForCompletion() bool {
 	for {
-		doc := d.Client.GetDocument(d.Links.Document)
+		doc := d.Client.Get(d.Links.Document)
 		fmt.Println(doc.Progress)
 		if doc.Progress == "COMPLETED" || doc.Progress == "ERROR" {
 			fmt.Println("Document state ==", doc.Progress)

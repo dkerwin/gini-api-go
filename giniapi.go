@@ -37,16 +37,14 @@ func (api *APIClient) Upload(filename string) Document {
 		log.Fatal(err)
 	}
 
-	fmt.Println("HEADER: ", resp.Header["Location"])
-	doc := api.GetDocument(resp.Header["Location"][0])
-	fmt.Println("Document uplaoded. Starting to poll...")
+	doc := api.Get(resp.Header["Location"][0])
 	doc.Poll(10)
 
 	return doc
 }
 
 // Get Document struct from URL
-func (api *APIClient) GetDocument(url string) Document {
+func (api *APIClient) Get(url string) Document {
 	resp, err := api.MakeAPIRequest("GET", url, nil)
 	if resp.StatusCode != http.StatusOK {
 		log.Fatal(resp.Status)
@@ -70,6 +68,78 @@ func (api *APIClient) GetDocument(url string) Document {
 	doc.Client = api
 
 	return doc
+}
+
+// ListDocuments returns DocumentSet
+func (api *APIClient) List(p *ListParams) DocumentSet {
+	u := fmt.Sprintf("%s/documents?limit=%d&offset=%d",
+		api.Config.Endpoints.API,
+		p.Limit,
+		p.Offset)
+
+	resp, err := api.MakeAPIRequest("GET", u, nil)
+	if resp.StatusCode != http.StatusOK {
+		log.Fatal(resp.Status)
+	}
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	contents, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var docs DocumentSet
+	err = json.Unmarshal(contents, &docs)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Extra round: Ingesting *APIClient into each and every doc
+	for _, d := range docs.Documents {
+		d.Client = api
+	}
+
+	return docs
+}
+
+// ListDocuments returns DocumentSet
+func (api *APIClient) Search(p *SearchParams) DocumentSet {
+	u := fmt.Sprintf("%s/search?q=%s&type=%slimit=%d&next=%d",
+		api.Config.Endpoints.API,
+		p.Query,
+		p.Type,
+		p.Limit,
+		p.Offset)
+
+	resp, err := api.MakeAPIRequest("GET", u, nil)
+	if resp.StatusCode != http.StatusOK {
+		log.Fatal(resp.Status)
+	}
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	contents, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var docs DocumentSet
+	err = json.Unmarshal(contents, &docs)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Extra round: Ingesting *APIClient into each and every doc
+	for _, d := range docs.Documents {
+		d.Client = api
+	}
+
+	return docs
 }
 
 func NewAPIClient(config *Config) (*APIClient, error) {

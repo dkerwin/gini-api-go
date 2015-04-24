@@ -1,6 +1,7 @@
 package giniapi
 
 import (
+	"fmt"
 	"net/http"
 )
 
@@ -81,6 +82,16 @@ type Document struct {
 	SourceClassification string `json:"sourceClassification"`
 }
 
+func (d Document) String() string {
+	return fmt.Sprintf(d.ID)
+}
+
+// DocumentSet list of documents
+type DocumentSet struct {
+	TotalCount int         `json:"totalCount"`
+	Documents  []*Document `json:"documents"`
+}
+
 // Page struct
 type Page struct {
 	Images     map[string]string `json:"images"`
@@ -105,7 +116,21 @@ type Extraction struct {
 }
 
 // Document extractions struct
-type DocExtractions struct {
-	Candidates  map[string]Extraction `json:"extractions"`
+type Extractions struct {
+	Candidates  map[string]Extraction `json:"candidates"`
 	Extractions map[string]Extraction `json:"extractions"`
+}
+
+// ListParams
+type ListParams struct {
+	Limit  int
+	Offset int
+}
+
+// SearchParams
+type SearchParams struct {
+	Query  string
+	Type   string
+	Limit  int
+	Offset int
 }
