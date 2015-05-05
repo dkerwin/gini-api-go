@@ -1,7 +1,6 @@
 package giniapi
 
 import (
-	"fmt"
 	"net/http"
 )
 
@@ -63,29 +62,6 @@ type APIError struct {
 	DocumentId string
 }
 
-// Document struct
-type Document struct {
-	Client *APIClient
-	Links  struct {
-		Document    string `json:"document"`
-		Extractions string `json:"extractions"`
-		Layout      string `json:"layout"`
-		Processed   string `json:"processed"`
-	} `json:"_links"`
-	CreationDate         int    `json:"creationDate"`
-	ID                   string `json:"id"`
-	Name                 string `json:"name"`
-	Origin               string `json:"origin"`
-	PageCount            int    `json:"pageCount"`
-	Pages                []Page `json:"pages"`
-	Progress             string `json:"progress"`
-	SourceClassification string `json:"sourceClassification"`
-}
-
-func (d Document) String() string {
-	return fmt.Sprintf(d.ID)
-}
-
 // DocumentSet list of documents
 type DocumentSet struct {
 	TotalCount int         `json:"totalCount"`
@@ -98,27 +74,53 @@ type Page struct {
 	PageNumber int               `json:"pageNumber"`
 }
 
-// Box struct
-type Box struct {
-	Height float64 `json:"height"`
-	Left   float64 `json:"left"`
-	Page   int     `json:"page"`
-	Top    float64 `json:"top"`
-	Width  float64 `json:"width"`
+////////////////////////////////////////////////////
+// Page Layout structs
+////////////////////////////////////////////////////
+type Layout struct {
+	Pages []PageLayout
 }
 
-// Extraction struct
-type Extraction struct {
-	Box        `json:"box"`
-	Candidates string `json:"candidates"`
-	Entity     string `json:"entity"`
-	Value      string `json:"value"`
+type PageLayout struct {
+	Number    int
+	SizeX     float64
+	SizeY     float64
+	TextZones []TextZone
+	Regions   []Region
 }
 
-// Document extractions struct
-type Extractions struct {
-	Candidates  map[string]Extraction `json:"candidates"`
-	Extractions map[string]Extraction `json:"extractions"`
+type TextZone struct {
+	Paragraphs []Paragraph
+}
+
+type PageCoordinates struct {
+	W float64
+	H float64
+	T float64
+	L float64
+}
+
+type Paragraph struct {
+	PageCoordinates
+	Lines []Line
+}
+
+type Line struct {
+	PageCoordinates
+	Words []Word
+}
+
+type Word struct {
+	PageCoordinates
+	Fontsize   float64
+	FontFamily string
+	Bold       bool
+	Text       string
+}
+
+type Region struct {
+	PageCoordinates
+	Type string
 }
 
 // ListParams

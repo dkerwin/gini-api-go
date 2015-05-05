@@ -9,7 +9,6 @@ package giniapi
 import (
 	"encoding/json"
 	"fmt"
-	"golang.org/x/oauth2"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -21,20 +20,54 @@ const (
 	VERSION string = "0.0.1"
 )
 
-// Upload non-form
-func (api *APIClient) Upload(filename string) Document {
+// New API Client
+func NewClient(config *Config) (*APIClient, error) {
+	typ := reflect.TypeOf(*config)
+
+	// Fix potential missing APIVersion with default
+	if config.APIVersion == "" {
+		f, _ := typ.FieldByName("APIVersion")
+		config.APIVersion = f.Tag.Get("default")
+	}
+
+	// Fix potential missing Authentication with default
+	if config.Authentication == "" {
+		f, _ := typ.FieldByName("Authentication")
+		config.APIVersion = f.Tag.Get("default")
+	}
+
+	// Fix potential missing Endpoints with defaults
+	typ = reflect.TypeOf(config.Endpoints)
+
+	if config.Endpoints.API == "" {
+		f, _ := typ.FieldByName("API")
+		config.Endpoints.API = f.Tag.Get("default")
+	}
+	if config.Endpoints.UserCenter == "" {
+		f, _ := typ.FieldByName("UserCenter")
+		config.Endpoints.UserCenter = f.Tag.Get("default")
+	}
+
+	return &APIClient{
+		Config:     *config,
+		HTTPClient: NewHttpClient(config),
+	}, nil
+
+}
+
+// Upload document
+func (api *APIClient) Upload(filename string, doctype string, userIdentifier string) Document {
 	bodyBuf, err := os.Open(filename)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	resp, err := api.MakeAPIRequest("POST", "https://api.gini.net/documents", bodyBuf)
-
-	if resp.StatusCode != http.StatusCreated {
-		log.Fatal(resp.Status)
-	}
+	resp, err := api.MakeAPIRequest("POST", "https://api.gini.net/documents", bodyBuf, userIdentifier, nil)
 	if err != nil {
 		log.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusCreated {
+		log.Fatal(resp.Status)
 	}
 
 	doc := api.Get(resp.Header["Location"][0])
@@ -45,7 +78,7 @@ func (api *APIClient) Upload(filename string) Document {
 
 // Get Document struct from URL
 func (api *APIClient) Get(url string) Document {
-	resp, err := api.MakeAPIRequest("GET", url, nil)
+	resp, err := api.MakeAPIRequest("GET", url, nil, "", nil)
 	if resp.StatusCode != http.StatusOK {
 		log.Fatal(resp.Status)
 	}
@@ -77,7 +110,7 @@ func (api *APIClient) List(p *ListParams) DocumentSet {
 		p.Limit,
 		p.Offset)
 
-	resp, err := api.MakeAPIRequest("GET", u, nil)
+	resp, err := api.MakeAPIRequest("GET", u, nil, "", nil)
 	if resp.StatusCode != http.StatusOK {
 		log.Fatal(resp.Status)
 	}
@@ -114,7 +147,7 @@ func (api *APIClient) Search(p *SearchParams) DocumentSet {
 		p.Limit,
 		p.Offset)
 
-	resp, err := api.MakeAPIRequest("GET", u, nil)
+	resp, err := api.MakeAPIRequest("GET", u, nil, "", nil)
 	if resp.StatusCode != http.StatusOK {
 		log.Fatal(resp.Status)
 	}
@@ -140,74 +173,4 @@ func (api *APIClient) Search(p *SearchParams) DocumentSet {
 	}
 
 	return docs
-}
-
-func NewAPIClient(config *Config) (*APIClient, error) {
-	typ := reflect.TypeOf(*config)
-
-	// Fix potential missing APIVersion with default
-	if config.APIVersion == "" {
-		f, _ := typ.FieldByName("APIVersion")
-		config.APIVersion = f.Tag.Get("default")
-	}
-
-	// Fix potential missing Authentication with default
-	if config.Authentication == "" {
-		f, _ := typ.FieldByName("Authentication")
-		config.APIVersion = f.Tag.Get("default")
-	}
-
-	// Fix potential missing Endpoints with defaults
-	typ = reflect.TypeOf(config.Endpoints)
-
-	if config.Endpoints.API == "" {
-		f, _ := typ.FieldByName("API")
-		config.Endpoints.API = f.Tag.Get("default")
-	}
-	if config.Endpoints.UserCenter == "" {
-		f, _ := typ.FieldByName("UserCenter")
-		config.Endpoints.UserCenter = f.Tag.Get("default")
-	}
-
-	if config.Authentication == "oauth2" {
-		if config.AuthCode != "" {
-			fmt.Println("To be implemented...")
-		} else if config.Username != "" && config.Password != "" {
-			// Create Oauth2 client
-			conf := &oauth2.Config{
-				ClientID:     config.ClientID,
-				ClientSecret: config.ClientSecret,
-				Scopes:       []string{"write"},
-				Endpoint: oauth2.Endpoint{
-					AuthURL:  "https://user.gini.net/oauth/authorize",
-					TokenURL: "https://user.gini.net/oauth/token",
-				},
-			}
-
-			token, err := conf.PasswordCredentialsToken(oauth2.NoContext, config.Username, config.Password)
-			if err != nil {
-				fmt.Println("Password exchange failed: ", err)
-			}
-
-			client := conf.Client(oauth2.NoContext, token)
-
-			return &APIClient{
-				Config:     *config,
-				HTTPClient: client,
-			}, nil
-		} else {
-			log.Fatal("Not enough parameters for oauth2")
-		}
-	} else if config.Authentication == "enterprise" {
-		fmt.Println("Some work to do...")
-	} else {
-		fmt.Printf("config: %#v\n", config)
-
-		return &APIClient{
-			Config:     *config,
-			HTTPClient: &http.Client{},
-		}, nil
-	}
-
-	return nil, nil
 }
