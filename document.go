@@ -2,6 +2,7 @@ package giniapi
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -9,8 +10,19 @@ import (
 	"time"
 )
 
+// Timing struct
+type Timing struct {
+	Upload     time.Duration
+	Processing time.Duration
+}
+
+func (t *Timing) Total() time.Duration {
+	return t.Upload + t.Processing
+}
+
 // Document struct
 type Document struct {
+	Timing
 	Client *APIClient
 	Links  struct {
 		Document    string `json:"document"`
@@ -33,7 +45,10 @@ func (d *Document) String() string {
 }
 
 // poll state and return true when done
-func (d *Document) Poll(interval time.Duration) bool {
+func (d *Document) Poll(timeout time.Duration) bool {
+	start := time.Now()
+	defer func() { d.Timing.Processing = time.Since(start) }()
+
 	respChannel := make(chan bool, 1)
 
 	go func() {
@@ -46,8 +61,8 @@ func (d *Document) Poll(interval time.Duration) bool {
 		if resp == true {
 			return resp
 		}
-	case <-time.After(time.Second * interval):
-		fmt.Println("Timed out waiting for response!")
+	case <-time.After(time.Second * timeout):
+		fmt.Println("Timed out waiting for document completion!")
 		return false
 	}
 
@@ -76,16 +91,14 @@ func (d *Document) WaitForCompletion() bool {
 func (d *Document) Delete() error {
 	resp, err := d.Client.MakeAPIRequest("DELETE", d.Links.Document, nil, "", nil)
 	if err != nil {
-		log.Fatal(err)
 		return err
 	}
 
 	if resp.StatusCode != http.StatusNoContent {
-		log.Fatal(resp.Status)
-		return err
+		return errors.New(fmt.Sprintf("Failed to delete document %s: HTTP status %d", d.ID, resp.StatusCode))
 	}
 
-	return err
+	return nil
 }
 
 // Report bug
@@ -168,7 +181,7 @@ func (d *Document) GetExtractions() (*Extractions, error) {
 // Processed Document
 func (d *Document) GetProcessed(filename string) error {
 	headers := map[string]string{
-		"Accept": "application/octet-stream"
+		"Accept": "application/octet-stream",
 	}
 	resp, err := d.Client.MakeAPIRequest("GET", d.Links.Processed, nil, "", headers)
 	if err != nil {

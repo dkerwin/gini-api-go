@@ -8,12 +8,14 @@ package giniapi
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
 	"reflect"
+	"time"
 )
 
 const (
@@ -48,32 +50,36 @@ func NewClient(config *Config) (*APIClient, error) {
 		config.Endpoints.UserCenter = f.Tag.Get("default")
 	}
 
+	client, err := NewHttpClient(config)
+	if err != nil {
+		return nil, err
+	}
+
 	return &APIClient{
 		Config:     *config,
-		HTTPClient: NewHttpClient(config),
+		HTTPClient: client,
 	}, nil
 
 }
 
-// Upload document
-func (api *APIClient) Upload(filename string, doctype string, userIdentifier string) Document {
-	bodyBuf, err := os.Open(filename)
-	if err != nil {
-		fmt.Println(err)
-	}
-
+// Upload document (read from local file)
+func (api *APIClient) Upload(bodyBuf io.Reader, doctype string, userIdentifier string) (*Document, error) {
+	start := time.Now()
 	resp, err := api.MakeAPIRequest("POST", "https://api.gini.net/documents", bodyBuf, userIdentifier, nil)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	if resp.StatusCode != http.StatusCreated {
-		log.Fatal(resp.Status)
+		return nil, errors.New(fmt.Sprintf("Invalid HTTP status code: %s", resp.StatusCode))
 	}
+	uploadDuration := time.Since(start)
 
 	doc := api.Get(resp.Header["Location"][0])
+	doc.Timing.Upload = uploadDuration
+
 	doc.Poll(10)
 
-	return doc
+	return &doc, nil
 }
 
 // Get Document struct from URL

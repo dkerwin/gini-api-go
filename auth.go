@@ -1,17 +1,16 @@
 package giniapi
 
 import (
-	"fmt"
+	"errors"
 	"golang.org/x/oauth2"
-	"log"
 	"net/http"
 )
 
 // Create custom http.Client for oauth2 or enterprise auth
-func NewHttpClient(config *Config) (client *http.Client) {
+func NewHttpClient(config *Config) (*http.Client, error) {
 	if config.Authentication == "oauth2" {
 		if config.AuthCode != "" {
-			fmt.Println("To be implemented...")
+			return nil, errors.New("To be implemented... Sorry")
 		} else if config.Username != "" && config.Password != "" {
 			// Create Oauth2 client
 			conf := &oauth2.Config{
@@ -26,19 +25,19 @@ func NewHttpClient(config *Config) (client *http.Client) {
 
 			token, err := conf.PasswordCredentialsToken(oauth2.NoContext, config.Username, config.Password)
 			if err != nil {
-				fmt.Println("Password exchange failed: ", err)
+				return nil, err
 			}
 
 			client := conf.Client(oauth2.NoContext, token)
-			return client
+			return client, nil
 		} else {
-			log.Fatal("Not enough parameters for oauth2")
+			return nil, errors.New("Not enough parameters for oauth2")
 		}
 	} else if config.Authentication == "enterprise" {
 		client := &http.Client{Transport: EnterpriseTransport{Config: config}}
-		return client
+		return client, nil
 	}
-	return &http.Client{}
+	return &http.Client{}, nil
 }
 
 // Custom net/http transport to add basic auth headers
