@@ -77,9 +77,10 @@ func (api *APIClient) Upload(bodyBuf io.Reader, doctype string, userIdentifier s
 	doc := api.Get(resp.Header["Location"][0])
 	doc.Timing.Upload = uploadDuration
 
-	doc.Poll(10)
+	// Poll for completion or failure with timeout
+	err = doc.Poll(10)
 
-	return &doc, nil
+	return &doc, err
 }
 
 // Get Document struct from URL

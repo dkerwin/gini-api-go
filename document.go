@@ -16,6 +16,7 @@ type Timing struct {
 	Processing time.Duration
 }
 
+// Calculate total time from upload + processing
 func (t *Timing) Total() time.Duration {
 	return t.Upload + t.Processing
 }
@@ -40,12 +41,13 @@ type Document struct {
 	SourceClassification string `json:"sourceClassification"`
 }
 
+// String representaion of a document
 func (d *Document) String() string {
 	return fmt.Sprintf(d.ID)
 }
 
 // poll state and return true when done
-func (d *Document) Poll(timeout time.Duration) bool {
+func (d *Document) Poll(timeout time.Duration) error {
 	start := time.Now()
 	defer func() { d.Timing.Processing = time.Since(start) }()
 
@@ -57,16 +59,14 @@ func (d *Document) Poll(timeout time.Duration) bool {
 
 	select {
 	case resp := <-respChannel:
-		fmt.Println("Processing state:", resp)
 		if resp == true {
-			return resp
+			return nil
 		}
 	case <-time.After(time.Second * timeout):
-		fmt.Println("Timed out waiting for document completion!")
-		return false
+		return errors.New(fmt.Sprintf("Processing timeout after %f seconds", timeout.Seconds()))
 	}
 
-	return true
+	return nil
 }
 
 // Update document struct (self)
@@ -78,9 +78,7 @@ func (d *Document) Update() Document {
 func (d *Document) WaitForCompletion() bool {
 	for {
 		doc := d.Client.Get(d.Links.Document)
-		fmt.Println(doc.Progress)
 		if doc.Progress == "COMPLETED" || doc.Progress == "ERROR" {
-			fmt.Println("Document state ==", doc.Progress)
 			return true
 		}
 	}
