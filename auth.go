@@ -47,6 +47,7 @@ type EnterpriseTransport struct {
 	Config    *Config
 }
 
+// RoundTrip to add basic auth header to all requests
 func (et EnterpriseTransport) RoundTrip(r *http.Request) (res *http.Response, err error) {
 	r.SetBasicAuth(et.Config.ClientID, et.Config.ClientSecret)
 

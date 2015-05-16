@@ -21,6 +21,12 @@ func (t *Timing) Total() time.Duration {
 	return t.Upload + t.Processing
 }
 
+// Page struct
+type Page struct {
+	Images     map[string]string `json:"images"`
+	PageNumber int               `json:"pageNumber"`
+}
+
 // Document struct
 type Document struct {
 	Timing
@@ -39,6 +45,12 @@ type Document struct {
 	Pages                []Page `json:"pages"`
 	Progress             string `json:"progress"`
 	SourceClassification string `json:"sourceClassification"`
+}
+
+// DocumentSet list of documents
+type DocumentSet struct {
+	TotalCount int         `json:"totalCount"`
+	Documents  []*Document `json:"documents"`
 }
 
 // String representaion of a document
@@ -87,7 +99,7 @@ func (d *Document) WaitForCompletion() bool {
 
 // Delete method
 func (d *Document) Delete() error {
-	resp, err := d.Client.MakeAPIRequest("DELETE", d.Links.Document, nil, "", nil)
+	resp, err := d.Client.MakeAPIRequest("DELETE", d.Links.Document, nil, nil, "")
 	if err != nil {
 		return err
 	}
@@ -106,7 +118,7 @@ func (d *Document) ErrorReport(summary string, description string) error {
 			d.Links.Document,
 			summary,
 			description,
-		), nil, "", nil)
+		), nil, nil, "")
 	if err != nil {
 		log.Fatal(err)
 		return err
@@ -123,7 +135,7 @@ func (d *Document) ErrorReport(summary string, description string) error {
 func (d *Document) GetLayout() (*Layout, error) {
 	var layout Layout
 
-	resp, err := d.Client.MakeAPIRequest("GET", d.Links.Layout, nil, "", nil)
+	resp, err := d.Client.MakeAPIRequest("GET", d.Links.Layout, nil, nil, "")
 	if err != nil {
 		log.Fatal(err)
 		return nil, err
@@ -151,7 +163,7 @@ func (d *Document) GetLayout() (*Layout, error) {
 func (d *Document) GetExtractions() (*Extractions, error) {
 	var extractions Extractions
 
-	resp, err := d.Client.MakeAPIRequest("GET", d.Links.Extractions, nil, "", nil)
+	resp, err := d.Client.MakeAPIRequest("GET", d.Links.Extractions, nil, nil, "")
 	if resp.StatusCode != http.StatusOK {
 		log.Fatal(resp.Status)
 		return nil, err
@@ -181,7 +193,7 @@ func (d *Document) GetProcessed(filename string) error {
 	headers := map[string]string{
 		"Accept": "application/octet-stream",
 	}
-	resp, err := d.Client.MakeAPIRequest("GET", d.Links.Processed, nil, "", headers)
+	resp, err := d.Client.MakeAPIRequest("GET", d.Links.Processed, nil, headers, "")
 	if err != nil {
 		log.Fatal(err)
 		return err
@@ -202,3 +214,12 @@ func (d *Document) GetProcessed(filename string) error {
 
 	return err
 }
+
+// SubmitFeedback on a single label
+// func (d *Document) SubmitFeedback(key string, newValue string) error {
+
+// 	if val, ok := e.Extractions[key]; ok {
+// 		return val.Value
+// 	}
+// 	return ""
+// }

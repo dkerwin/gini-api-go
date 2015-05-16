@@ -8,7 +8,7 @@ import (
 )
 
 // Wrapper around http.NewRequest to inject headers etc.
-func (api *APIClient) MakeAPIRequest(verb string, url string, body io.Reader, userIdentifier string, headers map[string]string) (*http.Response, error) {
+func (api *APIClient) MakeAPIRequest(verb string, url string, body io.Reader, headers map[string]string, userIdentifier string) (*http.Response, error) {
 	req, err := http.NewRequest(verb, url, body)
 	if err != nil {
 		panic(err)
