@@ -34,7 +34,6 @@ package giniapi
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -66,7 +65,7 @@ type Config struct {
 	APIVersion string `default:"v1"`
 	// Authentication to use
 	// oauth2: auth_code || password credentials
-	// enterprise: basic auth + user identifier
+	// basicAuth: basic auth + user identifier
 	Authentication string `default:"oauth2"`
 }
 
@@ -128,53 +127,58 @@ func NewClient(config *Config) (*APIClient, error) {
 }
 
 // Upload a document from a given io.Reader (bodyBuf). fileName and docType are not mandatory
-// and can be empty. userIdentifier is required when Authentication method is "enterprise".
+// and can be empty. userIdentifier is required when Authentication method is "basic_auth".
 // Upload time is measured and stored in Timing struct (part of Document).
-func (api *APIClient) Upload(bodyBuf io.Reader, fileName, docType, userIdentifier string) (*Document, error) {
+func (api *APIClient) Upload(bodyBuf io.Reader, fileName, docType, userIdentifier string, pollTimeoutSec int32) (*Document, error) {
 	start := time.Now()
 	resp, err := api.MakeAPIRequest("POST", fmt.Sprintf("%s/documents", api.Config.Endpoints.API), bodyBuf, nil, userIdentifier)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Document upload failed: %s", err)
 	}
 	if resp.StatusCode != http.StatusCreated {
-		return nil, errors.New(fmt.Sprintf("Invalid HTTP status code: %s", resp.StatusCode))
+		return nil, fmt.Errorf("Upload failed with HTTP status code %d", resp.StatusCode)
 	}
 	uploadDuration := time.Since(start)
 
-	doc := api.Get(resp.Header["Location"][0])
+	doc, _ := api.Get(resp.Header["Location"][0], userIdentifier)
+	if err != nil {
+		return nil, err
+	}
 	doc.Timing.Upload = uploadDuration
 
 	// Poll for completion or failure with timeout
-	err = doc.Poll(10)
+	err = doc.Poll(time.Duration(pollTimeoutSec) * time.Second)
 
 	return &doc, err
 }
 
 // Get Document struct from URL
-func (api *APIClient) Get(url string) Document {
-	resp, err := api.MakeAPIRequest("GET", url, nil, nil, "")
-	if resp.StatusCode != http.StatusOK {
-		log.Fatal(resp.Status)
-	}
+func (api *APIClient) Get(url, userIdentifier string) (Document, error) {
+	resp, err := api.MakeAPIRequest("GET", url, nil, nil, userIdentifier)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("Failed to get document %s: %s", url, err)
 	}
-	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Failed to get document %s: HTTP status code %s", url, resp.StatusCode)
+	}
 
+	defer resp.Body.Close()
 	contents, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("Failed to read document body: %s", err)
 	}
 
 	var doc Document
 	err = json.Unmarshal(contents, &doc)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("Failed to parse document json: %s", err)
 	}
 
+	// Add client and owner to doc object
 	doc.Client = api
+	doc.Owner = userIdentifier
 
-	return doc
+	return doc, nil
 }
 
 // ListDocuments returns DocumentSet

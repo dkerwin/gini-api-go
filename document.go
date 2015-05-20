@@ -31,6 +31,7 @@ type Page struct {
 type Document struct {
 	Timing
 	Client *APIClient
+	Owner  string
 	Links  struct {
 		Document    string `json:"document"`
 		Extractions string `json:"extractions"`
@@ -74,8 +75,8 @@ func (d *Document) Poll(timeout time.Duration) error {
 		if resp == true {
 			return nil
 		}
-	case <-time.After(time.Second * timeout):
-		return errors.New(fmt.Sprintf("Processing timeout after %f seconds", timeout.Seconds()))
+	case <-time.After(timeout):
+		return errors.New(fmt.Sprintf("Processing timeout after %v seconds", timeout.Seconds()))
 	}
 
 	return nil
@@ -83,13 +84,13 @@ func (d *Document) Poll(timeout time.Duration) error {
 
 // Update document struct (self)
 func (d *Document) Update() Document {
-	newDoc := d.Client.Get(d.Links.Document)
+	newDoc, _ := d.Client.Get(d.Links.Document, d.Owner)
 	return newDoc
 }
 
 func (d *Document) WaitForCompletion() bool {
 	for {
-		doc := d.Client.Get(d.Links.Document)
+		doc, _ := d.Client.Get(d.Links.Document, d.Owner)
 		if doc.Progress == "COMPLETED" || doc.Progress == "ERROR" {
 			return true
 		}
