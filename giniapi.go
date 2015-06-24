@@ -59,6 +59,8 @@ type Config struct {
 	Password string
 	// Auth_code to exchange for oauth2 token
 	AuthCode string
+	// Scopes to use (leave empty for all assigned scopes)
+	Scopes []string
 	// API & Usercenter endpoints
 	Endpoints
 	// APIVersion to use (v1)
@@ -149,11 +151,11 @@ func (api *APIClient) Upload(bodyBuf io.Reader, fileName, docType, userIdentifie
 	// Poll for completion or failure with timeout
 	err = doc.Poll(time.Duration(pollTimeoutSec) * time.Second)
 
-	return &doc, err
+	return doc, err
 }
 
 // Get Document struct from URL
-func (api *APIClient) Get(url, userIdentifier string) (Document, error) {
+func (api *APIClient) Get(url, userIdentifier string) (*Document, error) {
 	resp, err := api.MakeAPIRequest("GET", url, nil, nil, userIdentifier)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get document %s: %s", url, err)
@@ -178,7 +180,7 @@ func (api *APIClient) Get(url, userIdentifier string) (Document, error) {
 	doc.Client = api
 	doc.Owner = userIdentifier
 
-	return doc, nil
+	return &doc, nil
 }
 
 // ListDocuments returns DocumentSet

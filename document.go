@@ -83,7 +83,7 @@ func (d *Document) Poll(timeout time.Duration) error {
 }
 
 // Update document struct (self)
-func (d *Document) Update() Document {
+func (d *Document) Update() *Document {
 	newDoc, _ := d.Client.Get(d.Links.Document, d.Owner)
 	return newDoc
 }

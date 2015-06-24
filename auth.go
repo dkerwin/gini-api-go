@@ -13,7 +13,7 @@ func NewHttpClient(config *Config) (*http.Client, error) {
 		conf := &oauth2.Config{
 			ClientID:     config.ClientID,
 			ClientSecret: config.ClientSecret,
-			Scopes:       []string{"write"},
+			Scopes:       config.Scopes,
 			Endpoint: oauth2.Endpoint{
 				AuthURL:  config.Endpoints.UserCenter + "/oauth/authorize",
 				TokenURL: config.Endpoints.UserCenter + "/oauth/token",
@@ -36,11 +36,13 @@ func NewHttpClient(config *Config) (*http.Client, error) {
 			client := conf.Client(oauth2.NoContext, token)
 			return client, nil
 		} else {
-			return nil, fmt.Errorf("Not enough parameters for oauth2")
+			return nil, fmt.Errorf("oauth2 authentication requires AuthCode or Username + Password")
 		}
 	} else if config.Authentication == "basicAuth" {
 		client := &http.Client{Transport: BasicAuthTransport{Config: config}}
 		return client, nil
+	} else {
+		return nil, fmt.Errorf("Unknown authentication %s", config.Authentication)
 	}
 	return &http.Client{}, nil
 }

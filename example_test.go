@@ -1,11 +1,19 @@
-package giniapi
+package giniapi_test
 
 import (
 	"fmt"
+	"github.com/dkerwin/gini-api-go"
+	"log"
+	"os"
 )
 
 // Very simplistic example. You shoud have a lot more error handling in place
-func Example_typicalOauth2Flow() {
+func ExampleNewClient() {
+
+	//////////////////////////////////
+	// Oauth2
+	//////////////////////////////////
+
 	// Setup api connection
 	api, err := giniapi.NewClient(&giniapi.Config{
 		ClientID:       "MY_CLIENT_ID",
@@ -16,46 +24,45 @@ func Example_typicalOauth2Flow() {
 	})
 
 	if err != nil {
-		panic("Gini API login failed: %s", err)
+		log.Panicf("Gini API login failed: %s", err)
 	}
 
 	// Read a PDF document
 	bodyBuf, _ := os.Open("/tmp/invoice.pdf")
 
 	// Upload document to gini without doctype hint and user identifier
-	doc, _ := api.Upload(bodyBuf, "invoice.pdf", "", "")
+	doc, _ := api.Upload(bodyBuf, "invoice.pdf", "", "", 10)
 
 	// Get extractions from our uploaded document
 	extractions, _ := doc.GetExtractions()
 
 	// Print IBAN
 	fmt.Printf("IBAN has been found: %s Woohoo!\n", extractions.GetValue("iban"))
-	// Output: IBAN has been found: DE2937030181004142612 Woohoo!
-}
 
-// Very simplistic example. You shoud have a lot more error handling in place
-func Example_typicalBasicAuthFlow() {
+	//////////////////////////////////
+	// basic Auth
+	//////////////////////////////////
+
 	// Setup api connection
-	api, err := giniapi.NewClient(&giniapi.Config{
+	api, err = giniapi.NewClient(&giniapi.Config{
 		ClientID:       "MY_CLIENT_ID",
 		ClientSecret:   "********",
-		Authentication: "enterprise",
+		Authentication: "basicAuth",
 	})
 
 	if err != nil {
-		panic("Gini API login failed: %s", err)
+		log.Panicf("Gini API login failed: %s", err)
 	}
 
 	// Read a PDF document
-	bodyBuf, _ := os.Open("/tmp/invoice.pdf")
+	bodyBuf, _ = os.Open("/tmp/invoice.pdf")
 
 	// Upload document to gini without doctype hint and user identifier
-	doc, _ := api.Upload(bodyBuf, "invoice.pdf", "", "user123")
+	doc, _ = api.Upload(bodyBuf, "invoice.pdf", "", "user123", 10)
 
 	// Get extractions from our uploaded document
-	extractions, _ := doc.GetExtractions()
+	extractions, _ = doc.GetExtractions()
 
 	// Print IBAN
 	fmt.Printf("IBAN has been found: %s Woohoo!\n", extractions.GetValue("iban"))
-	// Output: IBAN has been found: DE2937030181004142612 Woohoo!
 }
