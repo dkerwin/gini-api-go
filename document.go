@@ -1,11 +1,9 @@
 package giniapi
 
 import (
+	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io/ioutil"
-	"log"
 	"net/http"
 	"time"
 )
@@ -27,17 +25,20 @@ type Page struct {
 	PageNumber int               `json:"pageNumber"`
 }
 
+// Links struct
+type Links struct {
+	Document    string `json:"document"`
+	Extractions string `json:"extractions"`
+	Layout      string `json:"layout"`
+	Processed   string `json:"processed"`
+}
+
 // Document struct
 type Document struct {
 	Timing
-	Client *APIClient
-	Owner  string
-	Links  struct {
-		Document    string `json:"document"`
-		Extractions string `json:"extractions"`
-		Layout      string `json:"layout"`
-		Processed   string `json:"processed"`
-	} `json:"_links"`
+	Client               *APIClient
+	Owner                string
+	Links                Links  `json:"_links"`
 	CreationDate         int    `json:"creationDate"`
 	ID                   string `json:"id"`
 	Name                 string `json:"name"`
@@ -76,7 +77,7 @@ func (d *Document) Poll(timeout time.Duration) error {
 			return nil
 		}
 	case <-time.After(timeout):
-		return errors.New(fmt.Sprintf("Processing timeout after %v seconds", timeout.Seconds()))
+		return fmt.Errorf("Processing timeout after %v seconds", timeout.Seconds())
 	}
 
 	return nil
@@ -106,7 +107,7 @@ func (d *Document) Delete() error {
 	}
 
 	if resp.StatusCode != http.StatusNoContent {
-		return errors.New(fmt.Sprintf("Failed to delete document %s: HTTP status %d", d.ID, resp.StatusCode))
+		return fmt.Errorf("Failed to delete document %s: HTTP status %d", d.ID, resp.StatusCode)
 	}
 
 	return nil
@@ -120,13 +121,9 @@ func (d *Document) ErrorReport(summary string, description string) error {
 			summary,
 			description,
 		), nil, nil, "")
-	if err != nil {
-		log.Fatal(err)
-		return err
-	}
+
 	if resp.StatusCode != http.StatusOK {
-		log.Fatal(resp.Status)
-		return err
+		return fmt.Errorf("Failed to submit error report for document %s: HTTP status %d", d.ID, resp.StatusCode)
 	}
 
 	return err
@@ -137,25 +134,16 @@ func (d *Document) GetLayout() (*Layout, error) {
 	var layout Layout
 
 	resp, err := d.Client.MakeAPIRequest("GET", d.Links.Layout, nil, nil, "")
-	if err != nil {
-		log.Fatal(err)
-		return nil, err
-	}
+
 	if resp.StatusCode != http.StatusOK {
-		log.Fatal(resp.Status)
+		err = fmt.Errorf("Failed to get layout for document %s: HTTP status %d", d.ID, resp.StatusCode)
+	}
+
+	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
 
-	contents, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = json.Unmarshal(contents, &layout)
-	if err != nil {
-		log.Fatal(err)
-	}
+	err = json.NewDecoder(resp.Body).Decode(&layout)
 
 	return &layout, err
 }
@@ -165,55 +153,39 @@ func (d *Document) GetExtractions() (*Extractions, error) {
 	var extractions Extractions
 
 	resp, err := d.Client.MakeAPIRequest("GET", d.Links.Extractions, nil, nil, "")
+
 	if resp.StatusCode != http.StatusOK {
-		log.Fatal(resp.Status)
+		err = fmt.Errorf("Failed to get extractions for document %s: HTTP status %d", d.ID, resp.StatusCode)
+	}
+
+	if err != nil {
 		return nil, err
 	}
-	if err != nil {
-		log.Fatal(err)
-		return nil, err
-	}
 
-	defer resp.Body.Close()
-
-	contents, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = json.Unmarshal(contents, &extractions)
-	if err != nil {
-		log.Fatal(err)
-	}
+	err = json.NewDecoder(resp.Body).Decode(&extractions)
 
 	return &extractions, err
 }
 
 // Processed Document
-func (d *Document) GetProcessed(filename string) error {
+func (d *Document) GetProcessed() ([]byte, error) {
 	headers := map[string]string{
 		"Accept": "application/octet-stream",
 	}
 	resp, err := d.Client.MakeAPIRequest("GET", d.Links.Processed, nil, headers, "")
-	if err != nil {
-		log.Fatal(err)
-		return err
-	}
+
 	if resp.StatusCode != http.StatusOK {
-		log.Fatal(resp.Status)
-		return err
+		err = fmt.Errorf("Failed to get processed document %s: HTTP status %d", d.ID, resp.StatusCode)
 	}
-	defer resp.Body.Close()
 
-	contents, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
-	err = ioutil.WriteFile("/tmp/processed.pdf", contents, 0644)
-	fmt.Println(err)
+	buf := new(bytes.Buffer)
+	_, err = buf.ReadFrom(resp.Body)
 
-	return err
+	return buf.Bytes(), err
 }
 
 // SubmitFeedback on a single label

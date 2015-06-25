@@ -23,6 +23,11 @@ func init() {
 	r.HandleFunc("/oauth/token", handlerPostToken).Methods("POST")
 	r.HandleFunc("/test/http/basicAuth", handlerTestHttpBasicAuth).Methods("GET")
 	r.HandleFunc("/test/http/oauth2", handlerTestHttpOauth2).Methods("GET")
+	r.HandleFunc("/test/document/delete", handlerTestDocumentDelete).Methods("DELETE")
+	r.HandleFunc("/test/document/errorreport", handlerTestDocumentErrorReport).Methods("POST")
+	r.HandleFunc("/test/layout", handlerTestDocumentLayout).Methods("GET")
+	r.HandleFunc("/test/extractions", handlerTestDocumentExtractions).Methods("GET")
+	r.HandleFunc("/test/processed", handlerTestDocumentProcessed).Methods("GET")
 	testHTTPServer = httptest.NewServer(handlerAccessLog(r))
 }
 
@@ -79,4 +84,145 @@ func writeHeaders(w http.ResponseWriter, code int, jobName string) {
 		h.Add("Job-Name", jobName)
 	}
 	w.WriteHeader(code)
+}
+
+func handlerTestDocumentDelete(w http.ResponseWriter, r *http.Request) {
+	body := "test completed"
+	writeHeaders(w, 204, "changes")
+	w.Write([]byte(body))
+}
+
+func handlerTestDocumentErrorReport(w http.ResponseWriter, r *http.Request) {
+	body := "test completed"
+	writeHeaders(w, 200, "changes")
+	w.Write([]byte(body))
+}
+
+func handlerTestDocumentLayout(w http.ResponseWriter, r *http.Request) {
+	writeHeaders(w, 200, "changes")
+	body := `{
+	  "pages": [
+	    {
+	      "number": 1,
+	      "sizeX": 595.3,
+	      "sizeY": 841.9,
+	      "textZones": [
+	        {
+	          "paragraphs": [
+	            {
+	              "l": 54.0,
+	              "t": 158.76,
+	              "w": 190.1,
+	              "h": 36.55000000000001,
+	              "lines": [
+	                {
+	                  "l": 54.0,
+	                  "t": 158.76,
+	                  "w": 190.1,
+	                  "h": 10.810000000000002,
+	                  "wds": [
+	                    {
+	                      "l": 54.0,
+	                      "t": 158.76,
+	                      "w": 18.129999999999995,
+	                      "h": 9.900000000000006,
+	                      "fontSize": 9.9,
+	                      "fontFamily": "Arial-BoldMT",
+	                      "bold":false,
+	                      "text": "Ihre"
+	                    },
+	                    {
+	                      "l": 74.86,
+	                      "t": 158.76,
+	                      "w": 83.91000000000001,
+	                      "h": 9.900000000000006,
+	                      "fontSize": 9.9,
+	                      "fontFamily": "Arial-BoldMT",
+	                      "bold":false,
+	                      "text": "Vorgangsnummer"
+	                    },
+	                    {
+	                      "l": 158.76,
+	                      "t": 158.76,
+	                      "w": 3.3000000000000114,
+	                      "h": 9.900000000000006,
+	                      "fontSize": 9.9,
+	                      "fontFamily": "Arial-BoldMT",
+	                      "bold":false,
+	                      "text": ":"
+	                    }
+	                  ]
+	                }
+	              ]
+	            }
+	          ]
+	        }
+	      ],
+	      "regions": [
+	        {
+	          "l": 20.0,
+	          "t": 240.1,
+	          "w": 190.0,
+	          "h": 150.3,
+	          "type": "RemittanceSlip"
+	        }
+	      ]
+	    }
+	  ]
+	}`
+
+	w.Write([]byte(body))
+}
+
+func handlerTestDocumentExtractions(w http.ResponseWriter, r *http.Request) {
+	writeHeaders(w, 200, "changes")
+	body := `{
+	    "extractions": {
+	        "amountToPay": {
+	            "box": {
+	                "height": 9.0,
+	                "left": 516.0,
+	                "page": 1,
+	                "top": 588.0,
+	                "width": 42.0
+	            },
+	            "entity": "amount",
+	            "value": "24.99:EUR",
+	            "candidates": "amounts"
+	        }
+	      },
+	      "candidates": {
+	        "amounts": [
+	          {
+	              "box": {
+	                  "height": 9.0,
+	                  "left": 516.0,
+	                  "page": 1,
+	                  "top": 588.0,
+	                  "width": 42.0
+	              },
+	              "entity": "amount",
+	              "value": "24.99:EUR"
+	          },
+	          {
+	              "box": {
+	                  "height": 9.0,
+	                  "left": 241.0,
+	                  "page": 1,
+	                  "top": 588.0,
+	                  "width": 42.0
+	              },
+	              "entity": "amount",
+	              "value": "21.0:EUR"
+	          }
+	        ]
+	    }
+	}`
+
+	w.Write([]byte(body))
+}
+
+func handlerTestDocumentProcessed(w http.ResponseWriter, r *http.Request) {
+	writeHeaders(w, 200, "changes")
+	w.Write([]byte("get processed"))
 }

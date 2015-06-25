@@ -43,4 +43,12 @@ func Test_NewHttpClient(t *testing.T) {
 	if client, err := NewHttpClient(&config); client == nil || err != nil {
 		t.Errorf("Failed to exchange username and password: %s", err)
 	}
+
+	// missing auth_code and user credentials
+	config.AuthCode = ""
+	config.Username = ""
+	config.Password = ""
+	if client, err := NewHttpClient(&config); client != nil || err == nil {
+		t.Errorf("Invalid oauth2 auth parameters shoulfd raise err: %s", err)
+	}
 }
