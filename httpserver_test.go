@@ -21,8 +21,8 @@ func init() {
 
 	r.HandleFunc("/ping", handlerGetPing).Methods("GET")
 	r.HandleFunc("/oauth/token", handlerPostToken).Methods("POST")
-	r.HandleFunc("/test/http/basicAuth", handlerTestHttpBasicAuth).Methods("GET")
-	r.HandleFunc("/test/http/oauth2", handlerTestHttpOauth2).Methods("GET")
+	r.HandleFunc("/test/http/basicAuth", handlerTestHTTPBasicAuth).Methods("GET")
+	r.HandleFunc("/test/http/oauth2", handlerTestHTTPOauth2).Methods("GET")
 	r.HandleFunc("/test/document/delete", handlerTestDocumentDelete).Methods("DELETE")
 	r.HandleFunc("/test/document/errorreport", handlerTestDocumentErrorReport).Methods("POST")
 	r.HandleFunc("/test/layout", handlerTestDocumentLayout).Methods("GET")
@@ -56,7 +56,7 @@ func handlerPostToken(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(body))
 }
 
-func handlerTestHttpBasicAuth(w http.ResponseWriter, r *http.Request) {
+func handlerTestHTTPBasicAuth(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Accept") != "application/vnd.gini.v1+json" {
 		writeHeaders(w, 500, "changes")
 	} else {
@@ -66,7 +66,7 @@ func handlerTestHttpBasicAuth(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(body))
 }
 
-func handlerTestHttpOauth2(w http.ResponseWriter, r *http.Request) {
+func handlerTestHTTPOauth2(w http.ResponseWriter, r *http.Request) {
 	body := "test completed"
 	if r.Header.Get("Authorization") != "Bearer 760822cb-2dec-4275-8da8-fa8f5680e8d4" {
 		writeHeaders(w, 401, "invalid token")

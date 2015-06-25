@@ -6,8 +6,9 @@ import (
 	"net/http"
 )
 
-// Create custom http.Client for oauth2 or enterprise auth
-func NewHttpClient(config *Config) (*http.Client, error) {
+// NewHTTPClient returns a custom http.Client for gini's oauth2 or basicAuth
+// based authentication. Supports auth_code and password credentials oauth flows.
+func NewHTTPClient(config *Config) (*http.Client, error) {
 	if config.Authentication == "oauth2" {
 		// Setup oauth2
 		conf := &oauth2.Config{
@@ -23,7 +24,7 @@ func NewHttpClient(config *Config) (*http.Client, error) {
 		if config.AuthCode != "" {
 			token, err := conf.Exchange(oauth2.NoContext, config.AuthCode)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to exchange auth code: %s", err)
+				return nil, fmt.Errorf("failed to exchange auth code: %s", err)
 			}
 			client := conf.Client(oauth2.NoContext, token)
 			return client, nil
@@ -42,13 +43,13 @@ func NewHttpClient(config *Config) (*http.Client, error) {
 		client := &http.Client{Transport: BasicAuthTransport{Config: config}}
 		return client, nil
 	} else {
-		return nil, fmt.Errorf("Unknown authentication %s", config.Authentication)
+		return nil, fmt.Errorf("unknown authentication %s", config.Authentication)
 	}
 	return &http.Client{}, nil
 }
 
-// Custom net/http transport to add Authorization headers
-// for Gini API's basic auth system
+// BasicAuthTransport is a net/http transport that automatically adds a matching authorization
+// header for Gini's basic auth system.
 type BasicAuthTransport struct {
 	Transport http.RoundTripper
 	Config    *Config

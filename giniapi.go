@@ -116,7 +116,7 @@ func NewClient(config *Config) (*APIClient, error) {
 	}
 
 	// Get http client based on the selected Authentication
-	client, err := NewHttpClient(config)
+	client, err := NewHTTPClient(config)
 	if err != nil {
 		return nil, err
 	}

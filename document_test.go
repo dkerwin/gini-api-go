@@ -76,7 +76,7 @@ func Test_DocumentGetProcessed(t *testing.T) {
 		},
 	}
 
-	doc_bytes, err := doc.GetProcessed()
+	docBytes, err := doc.GetProcessed()
 	assertEqual(t, err, nil, "")
-	assertEqual(t, string(doc_bytes), "get processed", "")
+	assertEqual(t, string(docBytes), "get processed", "")
 }

@@ -18,9 +18,8 @@ func (api *APIClient) MakeAPIRequest(verb string, url string, body io.Reader, he
 	if api.Config.Authentication == "basicAuth" {
 		if userIdentifier == "" {
 			return nil, fmt.Errorf("userIdentifier required (Authentication=basicAuth)")
-		} else {
-			req.Header.Add("X-User-Identifier", userIdentifier)
 		}
+		req.Header.Add("X-User-Identifier", userIdentifier)
 	}
 
 	// Append additional headers

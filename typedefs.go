@@ -9,8 +9,8 @@ type APIError struct {
 	Message string
 
 	// APIRequestId
-	RequestId string
+	RequestID string
 
 	// DocumentId
-	DocumentId string
+	DocumentID string
 }
