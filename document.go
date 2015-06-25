@@ -14,18 +14,18 @@ type Timing struct {
 	Processing time.Duration
 }
 
-// Calculate total time from upload + processing
+// Total returns the summarized timings of upload and processing
 func (t *Timing) Total() time.Duration {
 	return t.Upload + t.Processing
 }
 
-// Page struct
+// Page describes a documents pages
 type Page struct {
 	Images     map[string]string `json:"images"`
 	PageNumber int               `json:"pageNumber"`
 }
 
-// Links struct
+// Links contains the links to a documents resources
 type Links struct {
 	Document    string `json:"document"`
 	Extractions string `json:"extractions"`
@@ -33,7 +33,7 @@ type Links struct {
 	Processed   string `json:"processed"`
 }
 
-// Document struct
+// Document contains all informations about a single document
 type Document struct {
 	Timing
 	Client               *APIClient
@@ -49,7 +49,7 @@ type Document struct {
 	SourceClassification string `json:"sourceClassification"`
 }
 
-// DocumentSet list of documents
+// DocumentSet is a list of documents with the total count
 type DocumentSet struct {
 	TotalCount int         `json:"totalCount"`
 	Documents  []*Document `json:"documents"`
@@ -60,7 +60,8 @@ func (d *Document) String() string {
 	return fmt.Sprintf(d.ID)
 }
 
-// poll state and return true when done
+// Poll the progress state of a document and return nil when the processing
+// has completed (successful or failed). On timeout return error
 func (d *Document) Poll(timeout time.Duration) error {
 	start := time.Now()
 	defer func() { d.Timing.Processing = time.Since(start) }()
@@ -77,18 +78,20 @@ func (d *Document) Poll(timeout time.Duration) error {
 			return nil
 		}
 	case <-time.After(timeout):
-		return fmt.Errorf("Processing timeout after %v seconds", timeout.Seconds())
+		return fmt.Errorf("processing timeout after %v seconds", timeout.Seconds())
 	}
 
 	return nil
 }
 
-// Update document struct (self)
+// Update document struct from self-contained document link
 func (d *Document) Update() *Document {
 	newDoc, _ := d.Client.Get(d.Links.Document, d.Owner)
 	return newDoc
 }
 
+// WaitForCompletion checks document progress and returns true on
+// COMPLETED or ERROR
 func (d *Document) WaitForCompletion() bool {
 	for {
 		doc, _ := d.Client.Get(d.Links.Document, d.Owner)
@@ -99,21 +102,20 @@ func (d *Document) WaitForCompletion() bool {
 	return false
 }
 
-// Delete method
+// Delete a document
 func (d *Document) Delete() error {
 	resp, err := d.Client.MakeAPIRequest("DELETE", d.Links.Document, nil, nil, "")
+
 	if err != nil {
 		return err
 	}
 
-	if resp.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("Failed to delete document %s: HTTP status %d", d.ID, resp.StatusCode)
-	}
-
-	return nil
+	return CheckHTTPStatus(resp.StatusCode, http.StatusNoContent,
+		fmt.Sprintf("failed to delete document %s: HTTP status %d", d.ID, resp.StatusCode))
 }
 
-// Report bug
+// ErrorReport creates a bug report in Gini's bugtracking system. It's a convinience way
+// to help Gini learn from difficult documents
 func (d *Document) ErrorReport(summary string, description string) error {
 	resp, err := d.Client.MakeAPIRequest("POST",
 		fmt.Sprintf("%s/errorreport?summary=%s&description=%s",
@@ -122,24 +124,27 @@ func (d *Document) ErrorReport(summary string, description string) error {
 			description,
 		), nil, nil, "")
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("Failed to submit error report for document %s: HTTP status %d", d.ID, resp.StatusCode)
+	if err != nil {
+		return err
 	}
 
-	return err
+	return CheckHTTPStatus(resp.StatusCode, http.StatusOK,
+		fmt.Sprintf("failed to submit error report for document %s: HTTP status %d", d.ID, resp.StatusCode))
 }
 
-// Layout
+// GetLayout returns the JSON representation of a documents layout parsed as
+// Layout struct
 func (d *Document) GetLayout() (*Layout, error) {
 	var layout Layout
 
 	resp, err := d.Client.MakeAPIRequest("GET", d.Links.Layout, nil, nil, "")
 
-	if resp.StatusCode != http.StatusOK {
-		err = fmt.Errorf("Failed to get layout for document %s: HTTP status %d", d.ID, resp.StatusCode)
+	if err != nil {
+		return nil, err
 	}
 
-	if err != nil {
+	if err := CheckHTTPStatus(resp.StatusCode, http.StatusOK,
+		fmt.Sprintf("failed to get layout for document %s: HTTP status %d", d.ID, resp.StatusCode)); err != nil {
 		return nil, err
 	}
 
@@ -148,17 +153,18 @@ func (d *Document) GetLayout() (*Layout, error) {
 	return &layout, err
 }
 
-// Extractions
+// GetExtractions returns a documents extractions in a Extractions struct
 func (d *Document) GetExtractions() (*Extractions, error) {
 	var extractions Extractions
 
 	resp, err := d.Client.MakeAPIRequest("GET", d.Links.Extractions, nil, nil, "")
 
-	if resp.StatusCode != http.StatusOK {
-		err = fmt.Errorf("Failed to get extractions for document %s: HTTP status %d", d.ID, resp.StatusCode)
+	if err != nil {
+		return nil, err
 	}
 
-	if err != nil {
+	if err := CheckHTTPStatus(resp.StatusCode, http.StatusOK,
+		fmt.Sprintf("failed to get extractions for document %s: HTTP status %d", d.ID, resp.StatusCode)); err != nil {
 		return nil, err
 	}
 
@@ -167,18 +173,20 @@ func (d *Document) GetExtractions() (*Extractions, error) {
 	return &extractions, err
 }
 
-// Processed Document
+// GetProcessed returns a byte array of the processed (rectified, optimized) document
 func (d *Document) GetProcessed() ([]byte, error) {
 	headers := map[string]string{
 		"Accept": "application/octet-stream",
 	}
+
 	resp, err := d.Client.MakeAPIRequest("GET", d.Links.Processed, nil, headers, "")
 
-	if resp.StatusCode != http.StatusOK {
-		err = fmt.Errorf("Failed to get processed document %s: HTTP status %d", d.ID, resp.StatusCode)
+	if err != nil {
+		return nil, err
 	}
 
-	if err != nil {
+	if err := CheckHTTPStatus(resp.StatusCode, http.StatusOK,
+		fmt.Sprintf("failed to get processed document %s: HTTP status %d", d.ID, resp.StatusCode)); err != nil {
 		return nil, err
 	}
 
@@ -187,12 +195,3 @@ func (d *Document) GetProcessed() ([]byte, error) {
 
 	return buf.Bytes(), err
 }
-
-// SubmitFeedback on a single label
-// func (d *Document) SubmitFeedback(key string, newValue string) error {
-
-// 	if val, ok := e.Extractions[key]; ok {
-// 		return val.Value
-// 	}
-// 	return ""
-// }
