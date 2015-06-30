@@ -36,7 +36,7 @@ type Links struct {
 // Document contains all informations about a single document
 type Document struct {
 	Timing
-	Client               *APIClient
+	client               *APIClient // client is not exported
 	Owner                string
 	Links                Links  `json:"_links"`
 	CreationDate         int    `json:"creationDate"`
@@ -85,16 +85,30 @@ func (d *Document) Poll(timeout time.Duration) error {
 }
 
 // Update document struct from self-contained document link
-func (d *Document) Update() *Document {
-	newDoc, _ := d.Client.Get(d.Links.Document, d.Owner)
-	return newDoc
+func (d *Document) Update() error {
+	newDoc, err := d.client.Get(d.Links.Document, d.Owner)
+
+	if err == nil {
+		d.Owner = newDoc.Owner
+		d.Links = newDoc.Links
+		d.CreationDate = newDoc.CreationDate
+		d.ID = newDoc.ID
+		d.Name = newDoc.Name
+		d.Origin = newDoc.Origin
+		d.PageCount = newDoc.PageCount
+		d.Pages = newDoc.Pages
+		d.Progress = newDoc.Progress
+		d.SourceClassification = newDoc.SourceClassification
+	}
+
+	return err
 }
 
 // WaitForCompletion checks document progress and returns true on
 // COMPLETED or ERROR
 func (d *Document) WaitForCompletion() bool {
 	for {
-		doc, _ := d.Client.Get(d.Links.Document, d.Owner)
+		doc, _ := d.client.Get(d.Links.Document, d.Owner)
 		if doc.Progress == "COMPLETED" || doc.Progress == "ERROR" {
 			return true
 		}
@@ -104,7 +118,7 @@ func (d *Document) WaitForCompletion() bool {
 
 // Delete a document
 func (d *Document) Delete() error {
-	resp, err := d.Client.MakeAPIRequest("DELETE", d.Links.Document, nil, nil, "")
+	resp, err := d.client.MakeAPIRequest("DELETE", d.Links.Document, nil, nil, "")
 
 	if err != nil {
 		return err
@@ -117,7 +131,7 @@ func (d *Document) Delete() error {
 // ErrorReport creates a bug report in Gini's bugtracking system. It's a convinience way
 // to help Gini learn from difficult documents
 func (d *Document) ErrorReport(summary string, description string) error {
-	resp, err := d.Client.MakeAPIRequest("POST",
+	resp, err := d.client.MakeAPIRequest("POST",
 		fmt.Sprintf("%s/errorreport?summary=%s&description=%s",
 			d.Links.Document,
 			summary,
@@ -137,7 +151,7 @@ func (d *Document) ErrorReport(summary string, description string) error {
 func (d *Document) GetLayout() (*Layout, error) {
 	var layout Layout
 
-	resp, err := d.Client.MakeAPIRequest("GET", d.Links.Layout, nil, nil, "")
+	resp, err := d.client.MakeAPIRequest("GET", d.Links.Layout, nil, nil, "")
 
 	if err != nil {
 		return nil, err
@@ -157,7 +171,7 @@ func (d *Document) GetLayout() (*Layout, error) {
 func (d *Document) GetExtractions() (*Extractions, error) {
 	var extractions Extractions
 
-	resp, err := d.Client.MakeAPIRequest("GET", d.Links.Extractions, nil, nil, "")
+	resp, err := d.client.MakeAPIRequest("GET", d.Links.Extractions, nil, nil, "")
 
 	if err != nil {
 		return nil, err
@@ -179,7 +193,7 @@ func (d *Document) GetProcessed() ([]byte, error) {
 		"Accept": "application/octet-stream",
 	}
 
-	resp, err := d.Client.MakeAPIRequest("GET", d.Links.Processed, nil, headers, "")
+	resp, err := d.client.MakeAPIRequest("GET", d.Links.Processed, nil, headers, "")
 
 	if err != nil {
 		return nil, err

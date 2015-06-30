@@ -177,7 +177,7 @@ func (api *APIClient) Get(url, userIdentifier string) (*Document, error) {
 	}
 
 	// Add client and owner to doc object
-	doc.Client = api
+	doc.client = api
 	doc.Owner = userIdentifier
 
 	return &doc, nil
@@ -212,7 +212,7 @@ func (api *APIClient) List(p *ListParams) DocumentSet {
 
 	// Extra round: Ingesting *APIClient into each and every doc
 	for _, d := range docs.Documents {
-		d.Client = api
+		d.client = api
 	}
 
 	return docs
@@ -249,7 +249,7 @@ func (api *APIClient) Search(p *SearchParams) DocumentSet {
 
 	// Extra round: Ingesting *APIClient into each and every doc
 	for _, d := range docs.Documents {
-		d.Client = api
+		d.client = api
 	}
 
 	return docs

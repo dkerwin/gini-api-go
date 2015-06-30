@@ -23,6 +23,7 @@ func init() {
 	r.HandleFunc("/oauth/token", handlerPostToken).Methods("POST")
 	r.HandleFunc("/test/http/basicAuth", handlerTestHTTPBasicAuth).Methods("GET")
 	r.HandleFunc("/test/http/oauth2", handlerTestHTTPOauth2).Methods("GET")
+	r.HandleFunc("/test/document/update", handlerTestDocumentUpdate).Methods("GET")
 	r.HandleFunc("/test/document/delete", handlerTestDocumentDelete).Methods("DELETE")
 	r.HandleFunc("/test/document/errorreport", handlerTestDocumentErrorReport).Methods("POST")
 	r.HandleFunc("/test/layout", handlerTestDocumentLayout).Methods("GET")
@@ -84,6 +85,12 @@ func writeHeaders(w http.ResponseWriter, code int, jobName string) {
 		h.Add("Job-Name", jobName)
 	}
 	w.WriteHeader(code)
+}
+
+func handlerTestDocumentUpdate(w http.ResponseWriter, r *http.Request) {
+	body := `{ "name": "Updated!" }`
+	writeHeaders(w, 200, "changes")
+	w.Write([]byte(body))
 }
 
 func handlerTestDocumentDelete(w http.ResponseWriter, r *http.Request) {

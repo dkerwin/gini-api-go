@@ -22,9 +22,24 @@ func Test_DocumentString(t *testing.T) {
 	assertEqual(t, doc.String(), "fb9877fc-f23c-40df-9e81-26e51f26682d", "Document.String() should return document ID")
 }
 
+func Test_DocumentUpdate(t *testing.T) {
+	doc := Document{
+		client: testOauthClient(t),
+		Name:   "original",
+		Links: Links{
+			Document: testHTTPServer.URL + "/test/document/update",
+		},
+	}
+
+	err := doc.Update()
+
+	assertEqual(t, err, nil, "")
+	assertEqual(t, doc.Name, "Updated!", "")
+}
+
 func Test_DocumentDelete(t *testing.T) {
 	doc := Document{
-		Client: testOauthClient(t),
+		client: testOauthClient(t),
 		Links: Links{
 			Document: testHTTPServer.URL + "/test/document/delete",
 		},
@@ -35,7 +50,7 @@ func Test_DocumentDelete(t *testing.T) {
 
 func Test_DocumentErrorReport(t *testing.T) {
 	doc := Document{
-		Client: testOauthClient(t),
+		client: testOauthClient(t),
 		Links: Links{
 			Document: testHTTPServer.URL + "/test/document",
 		},
@@ -46,7 +61,7 @@ func Test_DocumentErrorReport(t *testing.T) {
 
 func Test_DocumentGetLayout(t *testing.T) {
 	doc := Document{
-		Client: testOauthClient(t),
+		client: testOauthClient(t),
 		Links: Links{
 			Layout: testHTTPServer.URL + "/test/layout",
 		},
@@ -58,7 +73,7 @@ func Test_DocumentGetLayout(t *testing.T) {
 
 func Test_DocumentGetExtractions(t *testing.T) {
 	doc := Document{
-		Client: testOauthClient(t),
+		client: testOauthClient(t),
 		Links: Links{
 			Extractions: testHTTPServer.URL + "/test/extractions",
 		},
@@ -70,7 +85,7 @@ func Test_DocumentGetExtractions(t *testing.T) {
 
 func Test_DocumentGetProcessed(t *testing.T) {
 	doc := Document{
-		Client: testOauthClient(t),
+		client: testOauthClient(t),
 		Links: Links{
 			Processed: testHTTPServer.URL + "/test/processed",
 		},
