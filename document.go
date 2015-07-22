@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -134,8 +135,8 @@ func (d *Document) ErrorReport(summary string, description string) error {
 	resp, err := d.client.MakeAPIRequest("POST",
 		fmt.Sprintf("%s/errorreport?summary=%s&description=%s",
 			d.Links.Document,
-			summary,
-			description,
+			url.QueryEscape(summary),
+			url.QueryEscape(description),
 		), nil, nil, d.Owner)
 
 	if err != nil {
@@ -208,4 +209,24 @@ func (d *Document) GetProcessed() ([]byte, error) {
 	_, err = buf.ReadFrom(resp.Body)
 
 	return buf.Bytes(), err
+}
+
+// SubmitFeedback submits feedback from map
+func (d *Document) SubmitFeedback(feedback map[string]map[string]map[string]string) error {
+	feedbackBody, err := json.Marshal(feedback)
+	if err != nil {
+		return err
+	}
+
+	resp, err := d.client.MakeAPIRequest("PUT", d.Links.Extractions, bytes.NewReader(feedbackBody), nil, d.Owner)
+	if err != nil {
+		return err
+	}
+
+	if err := CheckHTTPStatus(resp.StatusCode, http.StatusNoContent,
+		fmt.Sprintf("failed to submit feedback for document %s: HTTP status %d", d.ID, resp.StatusCode)); err != nil {
+		return err
+	}
+
+	return nil
 }
