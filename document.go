@@ -136,7 +136,7 @@ func (d *Document) ErrorReport(summary string, description string) error {
 			d.Links.Document,
 			summary,
 			description,
-		), nil, nil, "")
+		), nil, nil, d.Owner)
 
 	if err != nil {
 		return err
@@ -171,7 +171,7 @@ func (d *Document) GetLayout() (*Layout, error) {
 func (d *Document) GetExtractions() (*Extractions, error) {
 	var extractions Extractions
 
-	resp, err := d.client.MakeAPIRequest("GET", d.Links.Extractions, nil, nil, "")
+	resp, err := d.client.MakeAPIRequest("GET", d.Links.Extractions, nil, nil, d.Owner)
 
 	if err != nil {
 		return nil, err
@@ -193,7 +193,7 @@ func (d *Document) GetProcessed() ([]byte, error) {
 		"Accept": "application/octet-stream",
 	}
 
-	resp, err := d.client.MakeAPIRequest("GET", d.Links.Processed, nil, headers, "")
+	resp, err := d.client.MakeAPIRequest("GET", d.Links.Processed, nil, headers, d.Owner)
 
 	if err != nil {
 		return nil, err
