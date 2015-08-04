@@ -119,7 +119,7 @@ func (d *Document) WaitForCompletion() bool {
 
 // Delete a document
 func (d *Document) Delete() error {
-	resp, err := d.client.MakeAPIRequest("DELETE", d.Links.Document, nil, nil, "")
+	resp, err := d.client.MakeAPIRequest("DELETE", d.Links.Document, nil, nil, d.Owner)
 
 	if err != nil {
 		return err
