@@ -45,7 +45,6 @@ func NewHTTPClient(config *Config) (*http.Client, error) {
 	} else {
 		return nil, fmt.Errorf("unknown authentication %s", config.Authentication)
 	}
-	return &http.Client{}, nil
 }
 
 // BasicAuthTransport is a net/http transport that automatically adds a matching authorization

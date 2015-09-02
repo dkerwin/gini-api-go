@@ -93,6 +93,17 @@ func (d *Document) Poll(timeout time.Duration) error {
 	}
 }
 
+// WaitForCompletion checks document progress and returns true on
+// COMPLETED or ERROR
+func (d *Document) WaitForCompletion() bool {
+	for {
+		doc, _ := d.client.Get(d.Links.Document, d.Owner)
+		if doc.Progress == "COMPLETED" || doc.Progress == "ERROR" {
+			return true
+		}
+	}
+}
+
 // Update document struct from self-contained document link
 func (d *Document) Update() error {
 	newDoc, err := d.client.Get(d.Links.Document, d.Owner)

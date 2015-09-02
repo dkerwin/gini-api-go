@@ -86,6 +86,36 @@ type APIClient struct {
 	HTTPClient *http.Client
 }
 
+// UploadOptions specify parameters to the Upload function
+type UploadOptions struct {
+	PollTimeout    time.Duration
+	FileName       string
+	DocType        string
+	UserIdentifier string
+}
+
+// Timeout returns a default timeout of 30 when PollTimeout is uninitialized
+func (o *UploadOptions) Timeout() time.Duration {
+	if o.PollTimeout == 0 {
+		return 30 * time.Second
+	}
+	return o.PollTimeout
+}
+
+// ListOptions specify parameters to the List function
+type ListOptions struct {
+	Limit  int
+	Offset int
+}
+
+// SearchOptions specify parameters to the List function
+type SearchOptions struct {
+	Query  string
+	Type   string
+	Limit  int
+	Offset int
+}
+
 // NewClient validates your Config parameters and returns a APIClient object
 // with a matching http client included.
 func NewClient(config *Config) (*APIClient, error) {
@@ -128,28 +158,28 @@ func NewClient(config *Config) (*APIClient, error) {
 
 }
 
-// Upload a document from a given io.Reader (bodyBuf). fileName and docType are not mandatory
+// Upload a document from a given io.Reader (document). fileName and docType are not mandatory
 // and can be empty. userIdentifier is required when Authentication method is "basic_auth".
 // Upload time is measured and stored in Timing struct (part of Document).
-func (api *APIClient) Upload(bodyBuf io.Reader, fileName, docType, userIdentifier string, pollTimeoutSec int32) (*Document, error) {
+func (api *APIClient) Upload(document io.Reader, options UploadOptions) (*Document, error) {
 	start := time.Now()
-	resp, err := api.MakeAPIRequest("POST", fmt.Sprintf("%s/documents", api.Config.Endpoints.API), bodyBuf, nil, userIdentifier)
+	resp, err := api.MakeAPIRequest("POST", fmt.Sprintf("%s/documents", api.Config.Endpoints.API), document, nil, options.UserIdentifier)
 	if err != nil {
-		return nil, fmt.Errorf("Document upload failed: %s", err)
+		return nil, NewHttpError(ErrPostFailed, "", err, resp)
 	}
 	if resp.StatusCode != http.StatusCreated {
-		return nil, fmt.Errorf("Upload failed with HTTP status code %d", resp.StatusCode)
+		return nil, NewHttpError(ErrUploadFailed, "", err, resp)
 	}
 	uploadDuration := time.Since(start)
 
-	doc, _ := api.Get(resp.Header["Location"][0], userIdentifier)
+	doc, err := api.Get(resp.Header["Location"][0], options.UserIdentifier)
 	if err != nil {
-		return nil, err
+		return nil, NewHttpError(ErrDocumentGet, "", err, resp)
 	}
 	doc.Timing.Upload = uploadDuration
 
 	// Poll for completion or failure with timeout
-	err = doc.Poll(time.Duration(pollTimeoutSec) * time.Second)
+	err = doc.Poll(options.Timeout())
 
 	return doc, err
 }
@@ -184,7 +214,7 @@ func (api *APIClient) Get(url, userIdentifier string) (*Document, error) {
 }
 
 // ListDocuments returns DocumentSet
-func (api *APIClient) List(p *ListParams) DocumentSet {
+func (api *APIClient) List(p ListOptions) DocumentSet {
 	u := fmt.Sprintf("%s/documents?limit=%d&offset=%d",
 		api.Config.Endpoints.API,
 		p.Limit,
@@ -219,7 +249,7 @@ func (api *APIClient) List(p *ListParams) DocumentSet {
 }
 
 // ListDocuments returns DocumentSet
-func (api *APIClient) Search(p *SearchParams) DocumentSet {
+func (api *APIClient) Search(p SearchOptions) DocumentSet {
 	u := fmt.Sprintf("%s/search?q=%s&type=%slimit=%d&next=%d",
 		api.Config.Endpoints.API,
 		p.Query,
