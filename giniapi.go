@@ -37,13 +37,13 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"reflect"
 	"time"
 )
 
 const (
+	// VERSION is the API client version
 	VERSION string = "0.1.0"
 )
 
@@ -104,16 +104,18 @@ func (o *UploadOptions) Timeout() time.Duration {
 
 // ListOptions specify parameters to the List function
 type ListOptions struct {
-	Limit  int
-	Offset int
+	Limit          int
+	Offset         int
+	UserIdentifier string
 }
 
 // SearchOptions specify parameters to the List function
 type SearchOptions struct {
-	Query  string
-	Type   string
-	Limit  int
-	Offset int
+	Query          string
+	Type           string
+	UserIdentifier string
+	Limit          int
+	Offset         int
 }
 
 // NewClient validates your Config parameters and returns a APIClient object
@@ -158,23 +160,24 @@ func NewClient(config *Config) (*APIClient, error) {
 
 }
 
-// Upload a document from a given io.Reader (document). fileName and docType are not mandatory
-// and can be empty. userIdentifier is required when Authentication method is "basic_auth".
+// Upload a document from a given io.Reader objct (document). Additional options can be
+// passed with a instance of UploadOptions. FileName and DocType are optional and can be empty.
+// UserIdentifier is required if Authentication method is "basic_auth".
 // Upload time is measured and stored in Timing struct (part of Document).
 func (api *APIClient) Upload(document io.Reader, options UploadOptions) (*Document, error) {
 	start := time.Now()
 	resp, err := api.MakeAPIRequest("POST", fmt.Sprintf("%s/documents", api.Config.Endpoints.API), document, nil, options.UserIdentifier)
 	if err != nil {
-		return nil, NewHttpError(ErrPostFailed, "", err, resp)
+		return nil, newHTTPError(ErrHTTPPostFailed, "", err, resp)
 	}
 	if resp.StatusCode != http.StatusCreated {
-		return nil, NewHttpError(ErrUploadFailed, "", err, resp)
+		return nil, newHTTPError(ErrUploadFailed, "", err, resp)
 	}
 	uploadDuration := time.Since(start)
 
 	doc, err := api.Get(resp.Header["Location"][0], options.UserIdentifier)
 	if err != nil {
-		return nil, NewHttpError(ErrDocumentGet, "", err, resp)
+		return nil, err
 	}
 	doc.Timing.Upload = uploadDuration
 
@@ -188,22 +191,21 @@ func (api *APIClient) Upload(document io.Reader, options UploadOptions) (*Docume
 func (api *APIClient) Get(url, userIdentifier string) (*Document, error) {
 	resp, err := api.MakeAPIRequest("GET", url, nil, nil, userIdentifier)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get document %s: %s", url, err)
+		return nil, newHTTPError(ErrHTTPGetFailed, "", err, resp)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Failed to get document %s: HTTP status code %d", url, resp.StatusCode)
+		return nil, newHTTPError(ErrDocumentGet, "", err, resp)
 	}
 
 	defer resp.Body.Close()
 	contents, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read document body: %s", err)
+		return nil, newHTTPError(ErrDocumentRead, "", err, nil)
 	}
 
 	var doc Document
-	err = json.Unmarshal(contents, &doc)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to parse document json: %s", err)
+	if err := json.Unmarshal(contents, &doc); err != nil {
+		return nil, newHTTPError(ErrDocumentParse, doc.ID, err, nil)
 	}
 
 	// Add client and owner to doc object
@@ -213,31 +215,34 @@ func (api *APIClient) Get(url, userIdentifier string) (*Document, error) {
 	return &doc, nil
 }
 
-// ListDocuments returns DocumentSet
-func (api *APIClient) List(p ListOptions) DocumentSet {
-	u := fmt.Sprintf("%s/documents?limit=%d&offset=%d",
-		api.Config.Endpoints.API,
-		p.Limit,
-		p.Offset)
+// List returns DocumentSet
+func (api *APIClient) List(options ListOptions) (*DocumentSet, error) {
+	params := map[string]interface{}{
+		"limit":  options.Limit,
+		"offset": options.Offset,
+	}
 
-	resp, err := api.MakeAPIRequest("GET", u, nil, nil, "")
-	if resp.StatusCode != http.StatusOK {
-		log.Fatal(resp.Status)
-	}
+	u := encodeURLParams(fmt.Sprintf("%s/documents", api.Config.Endpoints.API), params)
+
+	resp, err := api.MakeAPIRequest("GET", u, nil, nil, options.UserIdentifier)
 	if err != nil {
-		log.Fatal(err)
+		return nil, newHTTPError(ErrHTTPGetFailed, "", err, resp)
 	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, newHTTPError(ErrDocumentList, "", err, resp)
+	}
+
 	defer resp.Body.Close()
 
 	contents, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal(err)
+		return nil, newHTTPError(ErrDocumentRead, "", err, nil)
 	}
 
 	var docs DocumentSet
-	err = json.Unmarshal(contents, &docs)
-	if err != nil {
-		log.Fatal(err)
+	if err := json.Unmarshal(contents, &docs); err != nil {
+		return nil, newHTTPError(ErrDocumentParse, "", err, nil)
 	}
 
 	// Extra round: Ingesting *APIClient into each and every doc
@@ -245,36 +250,39 @@ func (api *APIClient) List(p ListOptions) DocumentSet {
 		d.client = api
 	}
 
-	return docs
+	return &docs, nil
 }
 
-// ListDocuments returns DocumentSet
-func (api *APIClient) Search(p SearchOptions) DocumentSet {
-	u := fmt.Sprintf("%s/search?q=%s&type=%slimit=%d&next=%d",
-		api.Config.Endpoints.API,
-		p.Query,
-		p.Type,
-		p.Limit,
-		p.Offset)
+// Search returns DocumentSet
+func (api *APIClient) Search(options SearchOptions) (*DocumentSet, error) {
+	params := map[string]interface{}{
+		"q":     options.Query,
+		"type":  options.Type,
+		"limit": options.Limit,
+		"next":  options.Offset,
+	}
 
-	resp, err := api.MakeAPIRequest("GET", u, nil, nil, "")
-	if resp.StatusCode != http.StatusOK {
-		log.Fatal(resp.Status)
-	}
+	u := encodeURLParams(fmt.Sprintf("%s/search", api.Config.Endpoints.API), params)
+
+	resp, err := api.MakeAPIRequest("GET", u, nil, nil, options.UserIdentifier)
 	if err != nil {
-		log.Fatal(err)
+		return nil, newHTTPError(ErrHTTPGetFailed, "", err, resp)
 	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, newHTTPError(ErrDocumentSearch, "", err, resp)
+	}
+
 	defer resp.Body.Close()
 
 	contents, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal(err)
+		return nil, newHTTPError(ErrDocumentRead, "", err, nil)
 	}
 
 	var docs DocumentSet
-	err = json.Unmarshal(contents, &docs)
-	if err != nil {
-		log.Fatal(err)
+	if err = json.Unmarshal(contents, &docs); err != nil {
+		return nil, newHTTPError(ErrDocumentParse, "", err, nil)
 	}
 
 	// Extra round: Ingesting *APIClient into each and every doc
@@ -282,5 +290,5 @@ func (api *APIClient) Search(p SearchOptions) DocumentSet {
 		d.client = api
 	}
 
-	return docs
+	return &docs, nil
 }

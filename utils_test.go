@@ -110,5 +110,16 @@ func Test_MakeAPIRequest(t *testing.T) {
 	if response, err := api.MakeAPIRequest("GET", testHTTPServer.URL+"/test/http/oauth2", nil, headers, ""); response == nil || err != nil {
 		t.Errorf("Call failed: %#v", err)
 	}
+}
 
+func Test_encodeURLParams(t *testing.T) {
+	params := map[string]interface{}{
+		"aInt":             9,
+		"aStrWithSpaces":   "Just a string",
+		"aStrWithEncoding": "test20%25gn%3B-%2F",
+	}
+
+	u := encodeURLParams("https://www.example.com", params)
+
+	assertEqual(t, u, "https://www.example.com?aInt=9&aStrWithEncoding=test20%2525gn%253B-%252F&aStrWithSpaces=Just+a+string", "")
 }
