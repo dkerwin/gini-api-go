@@ -160,7 +160,7 @@ func NewClient(config *Config) (*APIClient, error) {
 // Upload time is measured and stored in Timing struct (part of Document).
 func (api *APIClient) Upload(document io.Reader, options UploadOptions) (*Document, error) {
 	start := time.Now()
-	resp, err := api.MakeAPIRequest("POST", fmt.Sprintf("%s/documents", api.Config.Endpoints.API), document, nil, options.UserIdentifier)
+	resp, err := api.makeAPIRequest("POST", fmt.Sprintf("%s/documents", api.Config.Endpoints.API), document, nil, options.UserIdentifier)
 	if err != nil {
 		return nil, newHTTPError(ErrHTTPPostFailed, "", err, resp)
 	}
@@ -183,7 +183,7 @@ func (api *APIClient) Upload(document io.Reader, options UploadOptions) (*Docume
 
 // Get Document struct from URL
 func (api *APIClient) Get(url, userIdentifier string) (*Document, error) {
-	resp, err := api.MakeAPIRequest("GET", url, nil, nil, userIdentifier)
+	resp, err := api.makeAPIRequest("GET", url, nil, nil, userIdentifier)
 	if err != nil {
 		return nil, newHTTPError(ErrHTTPGetFailed, "", err, resp)
 	}
@@ -218,7 +218,7 @@ func (api *APIClient) List(options ListOptions) (*DocumentSet, error) {
 
 	u := encodeURLParams(fmt.Sprintf("%s/documents", api.Config.Endpoints.API), params)
 
-	resp, err := api.MakeAPIRequest("GET", u, nil, nil, options.UserIdentifier)
+	resp, err := api.makeAPIRequest("GET", u, nil, nil, options.UserIdentifier)
 	if err != nil {
 		return nil, newHTTPError(ErrHTTPGetFailed, "", err, resp)
 	}
@@ -242,6 +242,7 @@ func (api *APIClient) List(options ListOptions) (*DocumentSet, error) {
 	// Extra round: Ingesting *APIClient into each and every doc
 	for _, d := range docs.Documents {
 		d.client = api
+		d.Owner = options.UserIdentifier
 	}
 
 	return &docs, nil
@@ -258,7 +259,7 @@ func (api *APIClient) Search(options SearchOptions) (*DocumentSet, error) {
 
 	u := encodeURLParams(fmt.Sprintf("%s/search", api.Config.Endpoints.API), params)
 
-	resp, err := api.MakeAPIRequest("GET", u, nil, nil, options.UserIdentifier)
+	resp, err := api.makeAPIRequest("GET", u, nil, nil, options.UserIdentifier)
 	if err != nil {
 		return nil, newHTTPError(ErrHTTPGetFailed, "", err, resp)
 	}
@@ -282,6 +283,7 @@ func (api *APIClient) Search(options SearchOptions) (*DocumentSet, error) {
 	// Extra round: Ingesting *APIClient into each and every doc
 	for _, d := range docs.Documents {
 		d.client = api
+		d.Owner = options.UserIdentifier
 	}
 
 	return &docs, nil

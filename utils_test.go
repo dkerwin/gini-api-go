@@ -55,7 +55,7 @@ func testBasicAuthClient(t *testing.T) *APIClient {
 }
 
 // Real tests from here
-func Test_MakeAPIRequest(t *testing.T) {
+func Test_makeAPIRequest(t *testing.T) {
 	// Basic config
 	config := Config{
 		ClientID:     "testclient",
@@ -74,12 +74,12 @@ func Test_MakeAPIRequest(t *testing.T) {
 	}
 
 	// Fail without userIdentifier
-	if response, err := api.MakeAPIRequest("GET", testHTTPServer.URL+"/test/http/basicAuth", nil, nil, ""); response != nil || err == nil {
+	if response, err := api.makeAPIRequest("GET", testHTTPServer.URL+"/test/http/basicAuth", nil, nil, ""); response != nil || err == nil {
 		t.Errorf("Missing userIdentifier should raise err")
 	}
 
 	// Succeed with userIdentifier
-	response, err := api.MakeAPIRequest("GET", testHTTPServer.URL+"/test/http/basicAuth", nil, nil, "user123")
+	response, err := api.makeAPIRequest("GET", testHTTPServer.URL+"/test/http/basicAuth", nil, nil, "user123")
 	if response == nil || err != nil {
 		t.Errorf("HTTP call with supplied userIdentifier failed: %s", err)
 	}
@@ -99,7 +99,7 @@ func Test_MakeAPIRequest(t *testing.T) {
 	}
 
 	// Make oauth2 call
-	if response, err := api.MakeAPIRequest("GET", testHTTPServer.URL+"/test/http/oauth2", nil, nil, ""); response == nil || err != nil {
+	if response, err := api.makeAPIRequest("GET", testHTTPServer.URL+"/test/http/oauth2", nil, nil, ""); response == nil || err != nil {
 		t.Errorf("Call failed: %#v", err)
 	}
 
@@ -107,7 +107,7 @@ func Test_MakeAPIRequest(t *testing.T) {
 	headers := map[string]string{
 		"X-Dummy-Header": "Ignored",
 	}
-	if response, err := api.MakeAPIRequest("GET", testHTTPServer.URL+"/test/http/oauth2", nil, headers, ""); response == nil || err != nil {
+	if response, err := api.makeAPIRequest("GET", testHTTPServer.URL+"/test/http/oauth2", nil, headers, ""); response == nil || err != nil {
 		t.Errorf("Call failed: %#v", err)
 	}
 }

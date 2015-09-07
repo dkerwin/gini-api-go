@@ -11,7 +11,7 @@ import (
 
 // MakeAPIRequest is a wrapper around http.NewRequest to create http
 // request and inject required headers.
-func (api *APIClient) MakeAPIRequest(verb, url string, body io.Reader, headers map[string]string, userIdentifier string) (*http.Response, error) {
+func (api *APIClient) makeAPIRequest(verb, url string, body io.Reader, headers map[string]string, userIdentifier string) (*http.Response, error) {
 	req, err := http.NewRequest(verb, url, body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create HTTP request: %s", err)

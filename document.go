@@ -67,7 +67,7 @@ func (d *Document) Poll(timeout time.Duration) error {
 	start := time.Now()
 	defer func() { d.Timing.Processing = time.Since(start) }()
 
-	done := make(chan bool, 1)
+	docProgress := make(chan *Document, 1)
 	quit := make(chan bool, 1)
 
 	go func() {
@@ -78,14 +78,18 @@ func (d *Document) Poll(timeout time.Duration) error {
 			default:
 				doc, _ := d.client.Get(d.Links.Document, d.Owner)
 				if doc.Progress == "COMPLETED" || doc.Progress == "ERROR" {
-					done <- true
+					docProgress <- doc
 				}
 			}
 		}
 	}()
 
 	select {
-	case <-done:
+	case doc := <-docProgress:
+		if doc == nil {
+			return newHTTPError(ErrDocumentProcessing, "", nil, nil)
+		}
+		*d = *doc
 		return nil
 	case <-time.After(timeout):
 		quit <- true
@@ -93,40 +97,19 @@ func (d *Document) Poll(timeout time.Duration) error {
 	}
 }
 
-// WaitForCompletion checks document progress and returns true on
-// COMPLETED or ERROR
-func (d *Document) WaitForCompletion() bool {
-	for {
-		doc, _ := d.client.Get(d.Links.Document, d.Owner)
-		if doc.Progress == "COMPLETED" || doc.Progress == "ERROR" {
-			return true
-		}
-	}
-}
-
 // Update document struct from self-contained document link
 func (d *Document) Update() error {
 	newDoc, err := d.client.Get(d.Links.Document, d.Owner)
-
-	if err == nil {
-		d.Owner = newDoc.Owner
-		d.Links = newDoc.Links
-		d.CreationDate = newDoc.CreationDate
-		d.ID = newDoc.ID
-		d.Name = newDoc.Name
-		d.Origin = newDoc.Origin
-		d.PageCount = newDoc.PageCount
-		d.Pages = newDoc.Pages
-		d.Progress = newDoc.Progress
-		d.SourceClassification = newDoc.SourceClassification
+	if err != nil {
+		return err
 	}
-
-	return err
+	*d = *newDoc
+	return nil
 }
 
 // Delete a document
 func (d *Document) Delete() error {
-	resp, err := d.client.MakeAPIRequest("DELETE", d.Links.Document, nil, nil, d.Owner)
+	resp, err := d.client.makeAPIRequest("DELETE", d.Links.Document, nil, nil, d.Owner)
 
 	if err != nil {
 		return err
@@ -139,7 +122,7 @@ func (d *Document) Delete() error {
 // ErrorReport creates a bug report in Gini's bugtracking system. It's a convinience way
 // to help Gini learn from difficult documents
 func (d *Document) ErrorReport(summary string, description string) error {
-	resp, err := d.client.MakeAPIRequest("POST",
+	resp, err := d.client.makeAPIRequest("POST",
 		fmt.Sprintf("%s/errorreport?summary=%s&description=%s",
 			d.Links.Document,
 			url.QueryEscape(summary),
@@ -159,7 +142,7 @@ func (d *Document) ErrorReport(summary string, description string) error {
 func (d *Document) GetLayout() (*Layout, error) {
 	var layout Layout
 
-	resp, err := d.client.MakeAPIRequest("GET", d.Links.Layout, nil, nil, "")
+	resp, err := d.client.makeAPIRequest("GET", d.Links.Layout, nil, nil, "")
 
 	if err != nil {
 		return nil, err
@@ -179,7 +162,7 @@ func (d *Document) GetLayout() (*Layout, error) {
 func (d *Document) GetExtractions() (*Extractions, error) {
 	var extractions Extractions
 
-	resp, err := d.client.MakeAPIRequest("GET", d.Links.Extractions, nil, nil, d.Owner)
+	resp, err := d.client.makeAPIRequest("GET", d.Links.Extractions, nil, nil, d.Owner)
 
 	if err != nil {
 		return nil, err
@@ -201,7 +184,7 @@ func (d *Document) GetProcessed() ([]byte, error) {
 		"Accept": "application/octet-stream",
 	}
 
-	resp, err := d.client.MakeAPIRequest("GET", d.Links.Processed, nil, headers, d.Owner)
+	resp, err := d.client.makeAPIRequest("GET", d.Links.Processed, nil, headers, d.Owner)
 
 	if err != nil {
 		return nil, err
@@ -225,7 +208,7 @@ func (d *Document) SubmitFeedback(feedback map[string]map[string]map[string]stri
 		return err
 	}
 
-	resp, err := d.client.MakeAPIRequest("PUT", d.Links.Extractions, bytes.NewReader(feedbackBody), nil, d.Owner)
+	resp, err := d.client.makeAPIRequest("PUT", d.Links.Extractions, bytes.NewReader(feedbackBody), nil, d.Owner)
 	if err != nil {
 		return err
 	}
