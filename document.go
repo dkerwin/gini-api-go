@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"time"
 )
 
@@ -93,7 +92,7 @@ func (d *Document) Poll(timeout time.Duration) error {
 		return nil
 	case <-time.After(timeout):
 		quit <- true
-		return fmt.Errorf("processing timeout after %v seconds", timeout.Seconds())
+		return newHTTPError(fmt.Sprintf("%s after %f", ErrDocumentTimeout, timeout.Seconds()), "", nil, nil)
 	}
 }
 
@@ -115,26 +114,34 @@ func (d *Document) Delete() error {
 		return err
 	}
 
-	return CheckHTTPStatus(resp.StatusCode, http.StatusNoContent,
-		fmt.Sprintf("failed to delete document %s: HTTP status %d", d.ID, resp.StatusCode))
+	if resp.StatusCode != http.StatusNoContent {
+		return newHTTPError(ErrDocumentDelete, d.ID, err, resp)
+	}
+
+	return nil
 }
 
 // ErrorReport creates a bug report in Gini's bugtracking system. It's a convinience way
 // to help Gini learn from difficult documents
 func (d *Document) ErrorReport(summary string, description string) error {
-	resp, err := d.client.makeAPIRequest("POST",
-		fmt.Sprintf("%s/errorreport?summary=%s&description=%s",
-			d.Links.Document,
-			url.QueryEscape(summary),
-			url.QueryEscape(description),
-		), nil, nil, d.Owner)
+	params := map[string]interface{}{
+		"summary":     summary,
+		"description": description,
+	}
+
+	u := encodeURLParams(fmt.Sprintf("%s/errorreport", d.Links.Document), params)
+
+	resp, err := d.client.makeAPIRequest("POST", u, nil, nil, d.Owner)
 
 	if err != nil {
 		return err
 	}
 
-	return CheckHTTPStatus(resp.StatusCode, http.StatusOK,
-		fmt.Sprintf("failed to submit error report for document %s: HTTP status %d", d.ID, resp.StatusCode))
+	if resp.StatusCode != http.StatusOK {
+		return newHTTPError(ErrDocumentReport, d.ID, err, resp)
+	}
+
+	return nil
 }
 
 // GetLayout returns the JSON representation of a documents layout parsed as
@@ -148,9 +155,8 @@ func (d *Document) GetLayout() (*Layout, error) {
 		return nil, err
 	}
 
-	if err := CheckHTTPStatus(resp.StatusCode, http.StatusOK,
-		fmt.Sprintf("failed to get layout for document %s: HTTP status %d", d.ID, resp.StatusCode)); err != nil {
-		return nil, err
+	if resp.StatusCode != http.StatusOK {
+		return nil, newHTTPError(ErrDocumentLayout, d.ID, err, resp)
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&layout)
@@ -168,9 +174,8 @@ func (d *Document) GetExtractions() (*Extractions, error) {
 		return nil, err
 	}
 
-	if err := CheckHTTPStatus(resp.StatusCode, http.StatusOK,
-		fmt.Sprintf("failed to get extractions for document %s: HTTP status %d", d.ID, resp.StatusCode)); err != nil {
-		return nil, err
+	if resp.StatusCode != http.StatusOK {
+		return nil, newHTTPError(ErrDocumentExtractions, d.ID, err, resp)
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&extractions)
@@ -185,20 +190,24 @@ func (d *Document) GetProcessed() ([]byte, error) {
 	}
 
 	resp, err := d.client.makeAPIRequest("GET", d.Links.Processed, nil, headers, d.Owner)
+	defer resp.Body.Close()
 
 	if err != nil {
 		return nil, err
 	}
 
-	if err := CheckHTTPStatus(resp.StatusCode, http.StatusOK,
-		fmt.Sprintf("failed to get processed document %s: HTTP status %d", d.ID, resp.StatusCode)); err != nil {
-		return nil, err
+	if resp.StatusCode != http.StatusOK {
+		return nil, newHTTPError(ErrDocumentProcessed, d.ID, err, resp)
 	}
 
 	buf := new(bytes.Buffer)
 	_, err = buf.ReadFrom(resp.Body)
 
-	return buf.Bytes(), err
+	if err != nil {
+		return nil, newHTTPError(ErrDocumentProcessed, d.ID, err, resp)
+	}
+
+	return buf.Bytes(), nil
 }
 
 // SubmitFeedback submits feedback from map
@@ -213,9 +222,8 @@ func (d *Document) SubmitFeedback(feedback map[string]map[string]map[string]stri
 		return err
 	}
 
-	if err := CheckHTTPStatus(resp.StatusCode, http.StatusNoContent,
-		fmt.Sprintf("failed to submit feedback for document %s: HTTP status %d", d.ID, resp.StatusCode)); err != nil {
-		return err
+	if resp.StatusCode != http.StatusNoContent {
+		return newHTTPError(ErrDocumentFeedback, d.ID, err, resp)
 	}
 
 	return nil
