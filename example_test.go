@@ -21,7 +21,7 @@ func ExampleNewClient() {
 		ClientSecret:   "********",
 		Username:       "user1",
 		Password:       "secret",
-		Authentication: "oauth2",
+		Authentication: giniapi.UseOauth2,
 	})
 
 	if err != nil {
@@ -48,7 +48,7 @@ func ExampleNewClient() {
 	api, err = giniapi.NewClient(&giniapi.Config{
 		ClientID:       "MY_CLIENT_ID",
 		ClientSecret:   "********",
-		Authentication: "basicAuth",
+		Authentication: giniapi.UseBasicAuth,
 	})
 
 	if err != nil {

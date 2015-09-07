@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func Test_NewHTTPClient(t *testing.T) {
+func Test_newHTTPClient(t *testing.T) {
 	// Basic config
 	config := Config{
 		ClientID:     "testclient",
@@ -15,24 +15,18 @@ func Test_NewHTTPClient(t *testing.T) {
 		},
 	}
 
-	// invalid
-	config.Authentication = "unknown"
-	if client, err := NewHTTPClient(&config); client != nil || err == nil {
-		t.Errorf("Unknown Authentication should not return http client: %s", err)
-	}
-
 	// basicAuth
-	config.Authentication = "basicAuth"
-	if client, err := NewHTTPClient(&config); client == nil || err != nil {
+	config.Authentication = UseBasicAuth
+	if client, err := newHTTPClient(&config); client == nil || err != nil {
 		t.Errorf("Failed to create http client: %s", err)
 	}
 
 	// oauth2
-	config.Authentication = "oauth2"
+	config.Authentication = UseOauth2
 
 	// AuthCode
 	config.AuthCode = "123456"
-	if client, err := NewHTTPClient(&config); client == nil || err != nil {
+	if client, err := newHTTPClient(&config); client == nil || err != nil {
 		t.Errorf("Failed to exchange auth code: %s", err)
 	}
 
@@ -40,7 +34,7 @@ func Test_NewHTTPClient(t *testing.T) {
 	config.AuthCode = ""
 	config.Username = "user1"
 	config.Password = "secret"
-	if client, err := NewHTTPClient(&config); client == nil || err != nil {
+	if client, err := newHTTPClient(&config); client == nil || err != nil {
 		t.Errorf("Failed to exchange username and password: %s", err)
 	}
 
@@ -48,7 +42,7 @@ func Test_NewHTTPClient(t *testing.T) {
 	config.AuthCode = ""
 	config.Username = ""
 	config.Password = ""
-	if client, err := NewHTTPClient(&config); client != nil || err == nil {
+	if client, err := newHTTPClient(&config); client != nil || err == nil {
 		t.Errorf("Invalid oauth2 auth parameters shoulfd raise err: %s", err)
 	}
 }

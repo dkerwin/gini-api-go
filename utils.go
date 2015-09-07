@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strconv"
 )
 
@@ -18,7 +19,7 @@ func (api *APIClient) MakeAPIRequest(verb, url string, body io.Reader, headers m
 	req.Header.Add("Accept", fmt.Sprintf("application/vnd.gini.%s+json", api.Config.APIVersion))
 	req.Header.Add("User-Agent", fmt.Sprintf("gini-api-go/%s", VERSION))
 
-	if api.Config.Authentication == "basicAuth" {
+	if reflect.TypeOf(api.Config.Authentication).Name() == "BasicAuth" {
 		if userIdentifier == "" {
 			return nil, fmt.Errorf("userIdentifier required (Authentication=basicAuth)")
 		}

@@ -6,6 +6,10 @@ import (
 )
 
 var (
+	ErrOauthAuthCodeExchange  = "failed to exchange oauth2 auth code"
+	ErrOauthCredentials       = "failed to obtain token with username/password"
+	ErrOauthParametersMissing = "oauth2 authentication requires AuthCode or Username + Password"
+
 	ErrUploadFailed   = "failed to upoad document"
 	ErrDocumentGet    = "failed to GET document object"
 	ErrDocumentParse  = "failed to parse document json"
@@ -24,6 +28,7 @@ type APIError struct {
 	Message    string
 	RequestID  string
 	DocumentID string
+	Parent     error
 }
 
 // Error satisifes the Error interface
@@ -43,6 +48,10 @@ func newHTTPError(message, docID string, err error, response *http.Response) *AP
 	if response != nil {
 		ae.StatusCode = response.StatusCode
 		ae.RequestID = response.Header.Get("X-Request-Id")
+	}
+
+	if err != nil {
+		ae.Parent = err
 	}
 
 	return &ae

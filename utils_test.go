@@ -21,7 +21,7 @@ func testOauthClient(t *testing.T) *APIClient {
 	config := Config{
 		ClientID:       "testclient",
 		ClientSecret:   "secret",
-		Authentication: "oauth2",
+		Authentication: UseOauth2,
 		AuthCode:       "123456",
 		Endpoints: Endpoints{
 			API:        testHTTPServer.URL,
@@ -40,7 +40,7 @@ func testBasicAuthClient(t *testing.T) *APIClient {
 	config := Config{
 		ClientID:       "testclient",
 		ClientSecret:   "secret",
-		Authentication: "basicAuth",
+		Authentication: UseBasicAuth,
 		Endpoints: Endpoints{
 			API:        testHTTPServer.URL,
 			UserCenter: testHTTPServer.URL,
@@ -67,7 +67,7 @@ func Test_MakeAPIRequest(t *testing.T) {
 	}
 
 	// basicAuth
-	config.Authentication = "basicAuth"
+	config.Authentication = UseBasicAuth
 	api, err := NewClient(&config)
 	if err != nil {
 		t.Errorf("Failed to setup NewClient: %s", err)
@@ -90,7 +90,7 @@ func Test_MakeAPIRequest(t *testing.T) {
 	}
 
 	// oauth2
-	config.Authentication = "oauth2"
+	config.Authentication = UseOauth2
 	config.AuthCode = "123456"
 
 	api, err = NewClient(&config)

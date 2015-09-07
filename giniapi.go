@@ -68,7 +68,7 @@ type Config struct {
 	// Authentication to use
 	// oauth2: auth_code || password credentials
 	// basicAuth: basic auth + user identifier
-	Authentication string `default:"oauth2"`
+	Authentication APIAuthScheme
 }
 
 // Endpoints to access API and Usercenter
@@ -129,12 +129,6 @@ func NewClient(config *Config) (*APIClient, error) {
 		config.APIVersion = f.Tag.Get("default")
 	}
 
-	// Fix potential missing Authentication with default
-	if config.Authentication == "" {
-		f, _ := cType.FieldByName("Authentication")
-		config.APIVersion = f.Tag.Get("default")
-	}
-
 	// Fix potential missing Endpoints with defaults
 	cType = reflect.TypeOf(config.Endpoints)
 
@@ -148,7 +142,7 @@ func NewClient(config *Config) (*APIClient, error) {
 	}
 
 	// Get http client based on the selected Authentication
-	client, err := NewHTTPClient(config)
+	client, err := newHTTPClient(config)
 	if err != nil {
 		return nil, err
 	}
