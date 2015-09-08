@@ -71,6 +71,40 @@ type Config struct {
 	Authentication APIAuthScheme
 }
 
+func (c *Config) Verify() error {
+	if c.ClientID == "" || c.ClientSecret == "" {
+		return newHTTPError(ErrConfigInvalid, "", nil, nil)
+	}
+
+	if reflect.TypeOf(c.Authentication).Name() == "Oauth2" {
+		if c.AuthCode == "" && (c.Username == "" || c.Password == "") {
+			return newHTTPError(ErrMissingCredentials, "", nil, nil)
+		}
+	}
+
+	cType := reflect.TypeOf(*c)
+
+	// Fix potential missing APIVersion with default
+	if c.APIVersion == "" {
+		f, _ := cType.FieldByName("APIVersion")
+		c.APIVersion = f.Tag.Get("default")
+	}
+
+	// Fix potential missing Endpoints with defaults
+	cType = reflect.TypeOf(c.Endpoints)
+
+	if c.Endpoints.API == "" {
+		f, _ := cType.FieldByName("API")
+		c.Endpoints.API = f.Tag.Get("default")
+	}
+	if c.Endpoints.UserCenter == "" {
+		f, _ := cType.FieldByName("UserCenter")
+		c.Endpoints.UserCenter = f.Tag.Get("default")
+	}
+
+	return nil
+}
+
 // Endpoints to access API and Usercenter
 type Endpoints struct {
 	API        string `default:"https://api.gini.net"`
@@ -121,24 +155,8 @@ type SearchOptions struct {
 // NewClient validates your Config parameters and returns a APIClient object
 // with a matching http client included.
 func NewClient(config *Config) (*APIClient, error) {
-	cType := reflect.TypeOf(*config)
-
-	// Fix potential missing APIVersion with default
-	if config.APIVersion == "" {
-		f, _ := cType.FieldByName("APIVersion")
-		config.APIVersion = f.Tag.Get("default")
-	}
-
-	// Fix potential missing Endpoints with defaults
-	cType = reflect.TypeOf(config.Endpoints)
-
-	if config.Endpoints.API == "" {
-		f, _ := cType.FieldByName("API")
-		config.Endpoints.API = f.Tag.Get("default")
-	}
-	if config.Endpoints.UserCenter == "" {
-		f, _ := cType.FieldByName("UserCenter")
-		config.Endpoints.UserCenter = f.Tag.Get("default")
+	if err := config.Verify(); err != nil {
+		return nil, err
 	}
 
 	// Get http client based on the selected Authentication

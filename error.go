@@ -6,6 +6,9 @@ import (
 )
 
 var (
+	ErrConfigInvalid      = "failed to initialize config object"
+	ErrMissingCredentials = "username or password cannot be empty in Oauth2 flow"
+
 	ErrOauthAuthCodeExchange  = "failed to exchange oauth2 auth code"
 	ErrOauthCredentials       = "failed to obtain token with username/password"
 	ErrOauthParametersMissing = "oauth2 authentication requires AuthCode or Username + Password"

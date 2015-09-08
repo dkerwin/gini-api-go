@@ -159,9 +159,11 @@ func (d *Document) GetLayout() (*Layout, error) {
 		return nil, newHTTPError(ErrDocumentLayout, d.ID, err, resp)
 	}
 
-	err = json.NewDecoder(resp.Body).Decode(&layout)
+	if err := json.NewDecoder(resp.Body).Decode(&layout); err != nil {
+		return nil, err
+	}
 
-	return &layout, err
+	return &layout, nil
 }
 
 // GetExtractions returns a documents extractions in a Extractions struct
