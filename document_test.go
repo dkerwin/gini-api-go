@@ -96,3 +96,30 @@ func Test_DocumentGetProcessed(t *testing.T) {
 	assertEqual(t, err, nil, "")
 	assertEqual(t, string(docBytes), "get processed", "")
 }
+
+func Test_DocumentSubmitFeedback(t *testing.T) {
+	doc := Document{
+		client: testOauthClient(t),
+		Links: Links{
+			Extractions: testHTTPServer.URL + "/test/feedback",
+		},
+	}
+
+	feedback := map[string]Extraction{
+		"iban": Extraction{
+			Entity: "iban",
+			Value:  "DE22222111117777766666",
+		},
+	}
+
+	// single label
+	assertEqual(t, doc.SubmitFeedback(feedback), nil, "")
+
+	feedback["bic"] = Extraction{
+		Entity: "bic",
+		Value:  "HYVEDEMMXXX",
+	}
+
+	// multiple labels
+	assertEqual(t, doc.SubmitFeedback(feedback), nil, "")
+}

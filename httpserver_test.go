@@ -1,7 +1,7 @@
 package giniapi
 
 import (
-	// "encoding/json"
+	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
 	// "io/ioutil"
@@ -29,6 +29,7 @@ func init() {
 	r.HandleFunc("/test/layout", handlerTestDocumentLayout).Methods("GET")
 	r.HandleFunc("/test/extractions", handlerTestDocumentExtractions).Methods("GET")
 	r.HandleFunc("/test/processed", handlerTestDocumentProcessed).Methods("GET")
+	r.HandleFunc("/test/feedback", handlerTestDocumentFeedback).Methods("PUT")
 	testHTTPServer = httptest.NewServer(handlerAccessLog(r))
 }
 
@@ -232,4 +233,15 @@ func handlerTestDocumentExtractions(w http.ResponseWriter, r *http.Request) {
 func handlerTestDocumentProcessed(w http.ResponseWriter, r *http.Request) {
 	writeHeaders(w, 200, "changes")
 	w.Write([]byte("get processed"))
+}
+
+func handlerTestDocumentFeedback(w http.ResponseWriter, r *http.Request) {
+	var feedbackMap map[string]map[string]Extraction
+
+	if err := json.NewDecoder(r.Body).Decode(&feedbackMap); err != nil {
+		writeHeaders(w, 500, "failed")
+		return
+	}
+
+	writeHeaders(w, 204, "ok")
 }

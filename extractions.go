@@ -19,12 +19,11 @@ type Extraction struct {
 
 // Document extractions struct
 type Extractions struct {
-	Client      *APIClient
 	Candidates  map[string][]Extraction `json:"candidates"`
 	Extractions map[string]Extraction   `json:"extractions"`
 }
 
-// GetValue is a helper function to get the real extraction value directly
+// GetValue is a helper function to get the extraction value or a empty string
 func (e *Extractions) GetValue(key string) string {
 	if val, ok := e.Extractions[key]; ok {
 		return val.Value

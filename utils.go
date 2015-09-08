@@ -35,16 +35,6 @@ func (api *APIClient) makeAPIRequest(verb, url string, body io.Reader, headers m
 	return resp, err
 }
 
-// CheckHTTPStatus compares HHTP response StatusCode against the expected code and
-// returns a error object from message or nil
-func CheckHTTPStatus(is int, should int, msg string) error {
-	if is != should {
-		return fmt.Errorf(msg)
-	}
-
-	return nil
-}
-
 func encodeURLParams(baseURL string, queryParams map[string]interface{}) string {
 	u, _ := url.Parse(baseURL)
 

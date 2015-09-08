@@ -178,9 +178,11 @@ func (d *Document) GetExtractions() (*Extractions, error) {
 		return nil, newHTTPError(ErrDocumentExtractions, d.ID, err, resp)
 	}
 
-	err = json.NewDecoder(resp.Body).Decode(&extractions)
+	if err := json.NewDecoder(resp.Body).Decode(&extractions); err != nil {
+		return nil, err
+	}
 
-	return &extractions, err
+	return &extractions, nil
 }
 
 // GetProcessed returns a byte array of the processed (rectified, optimized) document
@@ -211,8 +213,16 @@ func (d *Document) GetProcessed() ([]byte, error) {
 }
 
 // SubmitFeedback submits feedback from map
-func (d *Document) SubmitFeedback(feedback map[string]map[string]map[string]string) error {
-	feedbackBody, err := json.Marshal(feedback)
+func (d *Document) SubmitFeedback(feedback map[string]Extraction) error {
+	feedbackMap := map[string]map[string]Extraction{
+		"feedback": map[string]Extraction{},
+	}
+
+	for key, extraction := range feedback {
+		feedbackMap["feedback"][key] = extraction
+	}
+
+	feedbackBody, err := json.Marshal(feedbackMap)
 	if err != nil {
 		return err
 	}
