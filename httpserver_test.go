@@ -21,8 +21,12 @@ func init() {
 
 	r.HandleFunc("/ping", handlerGetPing).Methods("GET")
 	r.HandleFunc("/oauth/token", handlerPostToken).Methods("POST")
+	r.HandleFunc("/documents", handlerTestDocumentList).Methods("GET")
+	r.HandleFunc("/documents", handlerTestDocumentUpload).Methods("POST")
+	r.HandleFunc("/search", handlerTestDocumentSearch).Methods("GET")
 	r.HandleFunc("/test/http/basicAuth", handlerTestHTTPBasicAuth).Methods("GET")
 	r.HandleFunc("/test/http/oauth2", handlerTestHTTPOauth2).Methods("GET")
+	r.HandleFunc("/test/document/get", handlerTestDocumentGet).Methods("GET")
 	r.HandleFunc("/test/document/update", handlerTestDocumentUpdate).Methods("GET")
 	r.HandleFunc("/test/document/delete", handlerTestDocumentDelete).Methods("DELETE")
 	r.HandleFunc("/test/document/errorreport", handlerTestDocumentErrorReport).Methods("POST")
@@ -30,6 +34,7 @@ func init() {
 	r.HandleFunc("/test/extractions", handlerTestDocumentExtractions).Methods("GET")
 	r.HandleFunc("/test/processed", handlerTestDocumentProcessed).Methods("GET")
 	r.HandleFunc("/test/feedback", handlerTestDocumentFeedback).Methods("PUT")
+
 	testHTTPServer = httptest.NewServer(handlerAccessLog(r))
 }
 
@@ -244,4 +249,157 @@ func handlerTestDocumentFeedback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeHeaders(w, 204, "ok")
+}
+
+func handlerTestDocumentUpload(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Location", fmt.Sprintf("%s/test/document/get", testHTTPServer.URL))
+	writeHeaders(w, 201, "ok")
+
+	return
+}
+
+func handlerTestDocumentGet(w http.ResponseWriter, r *http.Request) {
+	writeHeaders(w, 200, "changes")
+	body := fmt.Sprintf(`{
+		  "id": "626626a0-749f-11e2-bfd6-000000000000",
+		  "creationDate": 1360623867402,
+		  "name": "scanned.jpg",
+		  "progress": "COMPLETED",
+		  "origin": "UPLOAD",
+		  "sourceClassification": "SCANNED",
+		  "pageCount": 1,
+		  "pages" : [
+		    {
+		      "images" : {
+		        "750x900" : "http://api.gini.net/documents/626626a0-749f-11e2-bfd6-000000000000/pages/1/750x900",
+		        "1280x1810" : "http://api.gini.net/documents/626626a0-749f-11e2-bfd6-000000000000/pages/1/1280x1810"
+		      },
+		      "pageNumber" : 1
+		    }
+		  ],
+		  "_links": {
+		    "extractions": "https://api.gini.net/documents/626626a0-749f-11e2-bfd6-000000000000/extractions",
+		    "layout": "https://api.gini.net/documents/626626a0-749f-11e2-bfd6-000000000000/layout",
+		    "document": "%s/test/document/get",
+		    "processed": "https://api.gini.net/documents/626626a0-749f-11e2-bfd6-000000000000/processed"
+		  }
+		}`, testHTTPServer.URL)
+
+	w.Write([]byte(body))
+}
+
+func handlerTestDocumentList(w http.ResponseWriter, r *http.Request) {
+	writeHeaders(w, 200, "changes")
+	body := `{
+		"totalCount": 2,
+		"documents": [
+			{
+			  "id": "626626a0-749f-11e2-bfd6-000000000000",
+			  "creationDate": 1360623867402,
+			  "name": "scanned.jpg",
+			  "progress": "COMPLETED",
+			  "origin": "UPLOAD",
+			  "sourceClassification": "SCANNED",
+			  "pageCount": 1,
+			  "pages" : [
+			    {
+			      "images" : {
+			        "750x900" : "http://api.gini.net/documents/626626a0-749f-11e2-bfd6-000000000000/pages/1/750x900",
+			        "1280x1810" : "http://api.gini.net/documents/626626a0-749f-11e2-bfd6-000000000000/pages/1/1280x1810"
+			      },
+			      "pageNumber" : 1
+			    }
+			  ],
+			  "_links": {
+			    "extractions": "https://api.gini.net/documents/626626a0-749f-11e2-bfd6-000000000000/extractions",
+			    "layout": "https://api.gini.net/documents/626626a0-749f-11e2-bfd6-000000000000/layout",
+			    "document": "https://api.gini.net/documents/626626a0-749f-11e2-bfd6-000000000000",
+			    "processed": "https://api.gini.net/documents/626626a0-749f-11e2-bfd6-000000000000/processed"
+			  }
+			},
+			{
+			  "id": "626626a0-749f-11e2-abc2-000000000000",
+			  "creationDate": 1360624287987,
+			  "name": "native.pdf",
+			  "progress": "COMPLETED",
+			  "origin": "UPLOAD",
+			  "sourceClassification": "NATIVE",
+			  "pageCount": 1,
+			  "pages" : [
+			    {
+			      "images" : {
+			        "750x900" : "http://api.gini.net/documents/626626a0-749f-11e2-abc2-000000000000/pages/1/750x900",
+			        "1280x1810" : "http://api.gini.net/documents/626626a0-749f-11e2-abc2-000000000000/pages/1/1280x1810"
+			      },
+			      "pageNumber" : 1
+			    }
+			  ],
+			  "_links": {
+			    "extractions": "https://api.gini.net/documents/626626a0-749f-11e2-abc2-000000000000/extractions",
+			    "layout": "https://api.gini.net/documents/626626a0-749f-11e2-abc2-000000000000/layout",
+			    "document": "https://api.gini.net/documents/626626a0-749f-11e2-abc2-000000000000",
+			    "processed": "https://api.gini.net/documents/626626a0-749f-11e2-abc2-000000000000/processed"
+			  }
+			}
+		]
+	}`
+	w.Write([]byte(body))
+}
+
+func handlerTestDocumentSearch(w http.ResponseWriter, r *http.Request) {
+	writeHeaders(w, 200, "changes")
+	body := `{
+		"totalCount": 2,
+		"documents": [
+			{
+			  "id": "626626a0-749f-11e2-bfd6-000000000000",
+			  "creationDate": 1360623867402,
+			  "name": "scanned.jpg",
+			  "progress": "COMPLETED",
+			  "origin": "UPLOAD",
+			  "sourceClassification": "SCANNED",
+			  "pageCount": 1,
+			  "pages" : [
+			    {
+			      "images" : {
+			        "750x900" : "http://api.gini.net/documents/626626a0-749f-11e2-bfd6-000000000000/pages/1/750x900",
+			        "1280x1810" : "http://api.gini.net/documents/626626a0-749f-11e2-bfd6-000000000000/pages/1/1280x1810"
+			      },
+			      "pageNumber" : 1
+			    }
+			  ],
+			  "_links": {
+			    "extractions": "https://api.gini.net/documents/626626a0-749f-11e2-bfd6-000000000000/extractions",
+			    "layout": "https://api.gini.net/documents/626626a0-749f-11e2-bfd6-000000000000/layout",
+			    "document": "https://api.gini.net/documents/626626a0-749f-11e2-bfd6-000000000000",
+			    "processed": "https://api.gini.net/documents/626626a0-749f-11e2-bfd6-000000000000/processed"
+			  }
+			},
+			{
+			  "id": "626626a0-749f-11e2-abc2-000000000000",
+			  "creationDate": 1360624287987,
+			  "name": "native.pdf",
+			  "progress": "COMPLETED",
+			  "origin": "UPLOAD",
+			  "sourceClassification": "NATIVE",
+			  "pageCount": 1,
+			  "pages" : [
+			    {
+			      "images" : {
+			        "750x900" : "http://api.gini.net/documents/626626a0-749f-11e2-abc2-000000000000/pages/1/750x900",
+			        "1280x1810" : "http://api.gini.net/documents/626626a0-749f-11e2-abc2-000000000000/pages/1/1280x1810"
+			      },
+			      "pageNumber" : 1
+			    }
+			  ],
+			  "_links": {
+			    "extractions": "https://api.gini.net/documents/626626a0-749f-11e2-abc2-000000000000/extractions",
+			    "layout": "https://api.gini.net/documents/626626a0-749f-11e2-abc2-000000000000/layout",
+			    "document": "https://api.gini.net/documents/626626a0-749f-11e2-abc2-000000000000",
+			    "processed": "https://api.gini.net/documents/626626a0-749f-11e2-abc2-000000000000/processed"
+			  }
+			}
+		]
+	}`
+	w.Write([]byte(body))
 }

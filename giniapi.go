@@ -111,15 +111,6 @@ type Endpoints struct {
 	UserCenter string `default:"https://user.gini.net"`
 }
 
-// APIClient is the main interface for the user
-type APIClient struct {
-	// Config
-	Config
-
-	// Http client
-	HTTPClient *http.Client
-}
-
 // UploadOptions specify parameters to the Upload function
 type UploadOptions struct {
 	PollTimeout    time.Duration
@@ -150,6 +141,15 @@ type SearchOptions struct {
 	UserIdentifier string
 	Limit          int
 	Offset         int
+}
+
+// APIClient is the main interface for the user
+type APIClient struct {
+	// Config
+	Config
+
+	// Http client
+	HTTPClient *http.Client
 }
 
 // NewClient validates your Config parameters and returns a APIClient object
@@ -187,7 +187,7 @@ func (api *APIClient) Upload(document io.Reader, options UploadOptions) (*Docume
 	}
 	uploadDuration := time.Since(start)
 
-	doc, err := api.Get(resp.Header["Location"][0], options.UserIdentifier)
+	doc, err := api.Get(resp.Header.Get("Location"), options.UserIdentifier)
 	if err != nil {
 		return nil, err
 	}
