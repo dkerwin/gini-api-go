@@ -75,9 +75,13 @@ func (d *Document) Poll(timeout time.Duration) error {
 			case <-quit:
 				return
 			default:
-				doc, _ := d.client.Get(d.Links.Document, d.Owner)
+				doc, err := d.client.Get(d.Links.Document, d.Owner)
+				if err != nil {
+					return
+				}
 				if doc.Progress == "COMPLETED" || doc.Progress == "ERROR" {
 					docProgress <- doc
+					return
 				}
 			}
 		}
