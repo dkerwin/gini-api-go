@@ -161,7 +161,7 @@ func (api *APIClient) Get(url, userIdentifier string) (*Document, error) {
 		return nil, fmt.Errorf("Failed to get document %s: %s", url, err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Failed to get document %s: HTTP status code %s", url, resp.StatusCode)
+		return nil, fmt.Errorf("Failed to get document %s: HTTP status code %d", url, resp.StatusCode)
 	}
 
 	defer resp.Body.Close()
