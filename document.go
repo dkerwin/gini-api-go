@@ -68,12 +68,18 @@ func (d *Document) Poll(timeout time.Duration) error {
 	defer func() { d.Timing.Processing = time.Since(start) }()
 
 	done := make(chan bool, 1)
+	quit := make(chan bool, 1)
 
 	go func() {
 		for {
-			doc, _ := d.client.Get(d.Links.Document, d.Owner)
-			if doc.Progress == "COMPLETED" || doc.Progress == "ERROR" {
-				done <- true
+			select {
+			case <-quit:
+				return
+			default:
+				doc, _ := d.client.Get(d.Links.Document, d.Owner)
+				if doc.Progress == "COMPLETED" || doc.Progress == "ERROR" {
+					done <- true
+				}
 			}
 		}
 	}()
@@ -82,6 +88,7 @@ func (d *Document) Poll(timeout time.Duration) error {
 	case <-done:
 		return nil
 	case <-time.After(timeout):
+		quit <- true
 		return fmt.Errorf("processing timeout after %v seconds", timeout.Seconds())
 	}
 }
