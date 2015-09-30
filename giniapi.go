@@ -37,13 +37,13 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"reflect"
 	"time"
 )
 
 const (
+	// VERSION is the API client version
 	VERSION string = "0.1.0"
 )
 
@@ -68,13 +68,79 @@ type Config struct {
 	// Authentication to use
 	// oauth2: auth_code || password credentials
 	// basicAuth: basic auth + user identifier
-	Authentication string `default:"oauth2"`
+	Authentication APIAuthScheme
+}
+
+func (c *Config) Verify() error {
+	if c.ClientID == "" || c.ClientSecret == "" {
+		return newHTTPError(ErrConfigInvalid, "", nil, nil)
+	}
+
+	if reflect.TypeOf(c.Authentication).Name() == "Oauth2" {
+		if c.AuthCode == "" && (c.Username == "" || c.Password == "") {
+			return newHTTPError(ErrMissingCredentials, "", nil, nil)
+		}
+	}
+
+	cType := reflect.TypeOf(*c)
+
+	// Fix potential missing APIVersion with default
+	if c.APIVersion == "" {
+		f, _ := cType.FieldByName("APIVersion")
+		c.APIVersion = f.Tag.Get("default")
+	}
+
+	// Fix potential missing Endpoints with defaults
+	cType = reflect.TypeOf(c.Endpoints)
+
+	if c.Endpoints.API == "" {
+		f, _ := cType.FieldByName("API")
+		c.Endpoints.API = f.Tag.Get("default")
+	}
+	if c.Endpoints.UserCenter == "" {
+		f, _ := cType.FieldByName("UserCenter")
+		c.Endpoints.UserCenter = f.Tag.Get("default")
+	}
+
+	return nil
 }
 
 // Endpoints to access API and Usercenter
 type Endpoints struct {
 	API        string `default:"https://api.gini.net"`
 	UserCenter string `default:"https://user.gini.net"`
+}
+
+// UploadOptions specify parameters to the Upload function
+type UploadOptions struct {
+	PollTimeout    time.Duration
+	FileName       string
+	DocType        string
+	UserIdentifier string
+}
+
+// Timeout returns a default timeout of 30 when PollTimeout is uninitialized
+func (o *UploadOptions) Timeout() time.Duration {
+	if o.PollTimeout == 0 {
+		return 30 * time.Second
+	}
+	return o.PollTimeout
+}
+
+// ListOptions specify parameters to the List function
+type ListOptions struct {
+	Limit          int
+	Offset         int
+	UserIdentifier string
+}
+
+// SearchOptions specify parameters to the List function
+type SearchOptions struct {
+	Query          string
+	Type           string
+	UserIdentifier string
+	Limit          int
+	Offset         int
 }
 
 // APIClient is the main interface for the user
@@ -89,34 +155,12 @@ type APIClient struct {
 // NewClient validates your Config parameters and returns a APIClient object
 // with a matching http client included.
 func NewClient(config *Config) (*APIClient, error) {
-	cType := reflect.TypeOf(*config)
-
-	// Fix potential missing APIVersion with default
-	if config.APIVersion == "" {
-		f, _ := cType.FieldByName("APIVersion")
-		config.APIVersion = f.Tag.Get("default")
-	}
-
-	// Fix potential missing Authentication with default
-	if config.Authentication == "" {
-		f, _ := cType.FieldByName("Authentication")
-		config.APIVersion = f.Tag.Get("default")
-	}
-
-	// Fix potential missing Endpoints with defaults
-	cType = reflect.TypeOf(config.Endpoints)
-
-	if config.Endpoints.API == "" {
-		f, _ := cType.FieldByName("API")
-		config.Endpoints.API = f.Tag.Get("default")
-	}
-	if config.Endpoints.UserCenter == "" {
-		f, _ := cType.FieldByName("UserCenter")
-		config.Endpoints.UserCenter = f.Tag.Get("default")
+	if err := config.Verify(); err != nil {
+		return nil, err
 	}
 
 	// Get http client based on the selected Authentication
-	client, err := NewHTTPClient(config)
+	client, err := newHTTPClient(config)
 	if err != nil {
 		return nil, err
 	}
@@ -128,52 +172,52 @@ func NewClient(config *Config) (*APIClient, error) {
 
 }
 
-// Upload a document from a given io.Reader (bodyBuf). fileName and docType are not mandatory
-// and can be empty. userIdentifier is required when Authentication method is "basic_auth".
+// Upload a document from a given io.Reader objct (document). Additional options can be
+// passed with a instance of UploadOptions. FileName and DocType are optional and can be empty.
+// UserIdentifier is required if Authentication method is "basic_auth".
 // Upload time is measured and stored in Timing struct (part of Document).
-func (api *APIClient) Upload(bodyBuf io.Reader, fileName, docType, userIdentifier string, pollTimeoutSec int32) (*Document, error) {
+func (api *APIClient) Upload(document io.Reader, options UploadOptions) (*Document, error) {
 	start := time.Now()
-	resp, err := api.MakeAPIRequest("POST", fmt.Sprintf("%s/documents", api.Config.Endpoints.API), bodyBuf, nil, userIdentifier)
+	resp, err := api.makeAPIRequest("POST", fmt.Sprintf("%s/documents", api.Config.Endpoints.API), document, nil, options.UserIdentifier)
 	if err != nil {
-		return nil, fmt.Errorf("Document upload failed: %s", err)
+		return nil, newHTTPError(ErrHTTPPostFailed, "", err, resp)
 	}
 	if resp.StatusCode != http.StatusCreated {
-		return nil, fmt.Errorf("Upload failed with HTTP status code %d", resp.StatusCode)
+		return nil, newHTTPError(ErrUploadFailed, "", err, resp)
 	}
 	uploadDuration := time.Since(start)
 
-	doc, _ := api.Get(resp.Header["Location"][0], userIdentifier)
+	doc, err := api.Get(resp.Header.Get("Location"), options.UserIdentifier)
 	if err != nil {
 		return nil, err
 	}
 	doc.Timing.Upload = uploadDuration
 
 	// Poll for completion or failure with timeout
-	err = doc.Poll(time.Duration(pollTimeoutSec) * time.Second)
+	err = doc.Poll(options.Timeout())
 
 	return doc, err
 }
 
 // Get Document struct from URL
 func (api *APIClient) Get(url, userIdentifier string) (*Document, error) {
-	resp, err := api.MakeAPIRequest("GET", url, nil, nil, userIdentifier)
+	resp, err := api.makeAPIRequest("GET", url, nil, nil, userIdentifier)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get document %s: %s", url, err)
+		return nil, newHTTPError(ErrHTTPGetFailed, "", err, resp)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Failed to get document %s: HTTP status code %d", url, resp.StatusCode)
+		return nil, newHTTPError(ErrDocumentGet, "", err, resp)
 	}
 
 	defer resp.Body.Close()
 	contents, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read document body: %s", err)
+		return nil, newHTTPError(ErrDocumentRead, "", err, nil)
 	}
 
 	var doc Document
-	err = json.Unmarshal(contents, &doc)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to parse document json: %s", err)
+	if err := json.Unmarshal(contents, &doc); err != nil {
+		return nil, newHTTPError(ErrDocumentParse, doc.ID, err, nil)
 	}
 
 	// Add client and owner to doc object
@@ -183,74 +227,82 @@ func (api *APIClient) Get(url, userIdentifier string) (*Document, error) {
 	return &doc, nil
 }
 
-// ListDocuments returns DocumentSet
-func (api *APIClient) List(p *ListParams) DocumentSet {
-	u := fmt.Sprintf("%s/documents?limit=%d&offset=%d",
-		api.Config.Endpoints.API,
-		p.Limit,
-		p.Offset)
+// List returns DocumentSet
+func (api *APIClient) List(options ListOptions) (*DocumentSet, error) {
+	params := map[string]interface{}{
+		"limit":  options.Limit,
+		"offset": options.Offset,
+	}
 
-	resp, err := api.MakeAPIRequest("GET", u, nil, nil, "")
-	if resp.StatusCode != http.StatusOK {
-		log.Fatal(resp.Status)
-	}
+	u := encodeURLParams(fmt.Sprintf("%s/documents", api.Config.Endpoints.API), params)
+
+	resp, err := api.makeAPIRequest("GET", u, nil, nil, options.UserIdentifier)
 	if err != nil {
-		log.Fatal(err)
+		return nil, newHTTPError(ErrHTTPGetFailed, "", err, resp)
 	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, newHTTPError(ErrDocumentList, "", err, resp)
+	}
+
 	defer resp.Body.Close()
 
 	contents, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal(err)
+		return nil, newHTTPError(ErrDocumentRead, "", err, nil)
 	}
 
 	var docs DocumentSet
-	err = json.Unmarshal(contents, &docs)
-	if err != nil {
-		log.Fatal(err)
+	if err := json.Unmarshal(contents, &docs); err != nil {
+		return nil, newHTTPError(ErrDocumentParse, "", err, nil)
 	}
 
 	// Extra round: Ingesting *APIClient into each and every doc
 	for _, d := range docs.Documents {
 		d.client = api
+		d.Owner = options.UserIdentifier
 	}
 
-	return docs
+	return &docs, nil
 }
 
-// ListDocuments returns DocumentSet
-func (api *APIClient) Search(p *SearchParams) DocumentSet {
-	u := fmt.Sprintf("%s/search?q=%s&type=%slimit=%d&next=%d",
-		api.Config.Endpoints.API,
-		p.Query,
-		p.Type,
-		p.Limit,
-		p.Offset)
+// Search returns DocumentSet
+func (api *APIClient) Search(options SearchOptions) (*DocumentSet, error) {
+	params := map[string]interface{}{
+		"q":     options.Query,
+		"type":  options.Type,
+		"limit": options.Limit,
+		"next":  options.Offset,
+	}
 
-	resp, err := api.MakeAPIRequest("GET", u, nil, nil, "")
-	if resp.StatusCode != http.StatusOK {
-		log.Fatal(resp.Status)
-	}
+	u := encodeURLParams(fmt.Sprintf("%s/search", api.Config.Endpoints.API), params)
+
+	resp, err := api.makeAPIRequest("GET", u, nil, nil, options.UserIdentifier)
 	if err != nil {
-		log.Fatal(err)
+		return nil, newHTTPError(ErrHTTPGetFailed, "", err, resp)
 	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, newHTTPError(ErrDocumentSearch, "", err, resp)
+	}
+
 	defer resp.Body.Close()
 
 	contents, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal(err)
+		return nil, newHTTPError(ErrDocumentRead, "", err, nil)
 	}
 
 	var docs DocumentSet
-	err = json.Unmarshal(contents, &docs)
-	if err != nil {
-		log.Fatal(err)
+	if err = json.Unmarshal(contents, &docs); err != nil {
+		return nil, newHTTPError(ErrDocumentParse, "", err, nil)
 	}
 
 	// Extra round: Ingesting *APIClient into each and every doc
 	for _, d := range docs.Documents {
 		d.client = api
+		d.Owner = options.UserIdentifier
 	}
 
-	return docs
+	return &docs, nil
 }

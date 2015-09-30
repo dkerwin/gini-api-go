@@ -17,11 +17,21 @@ func assertEqual(t *testing.T, a interface{}, b interface{}, message string) {
 	t.Fatal(message)
 }
 
+func assertNotEqual(t *testing.T, a interface{}, b interface{}, message string) {
+	if a != b {
+		return
+	}
+	if len(message) == 0 {
+		message = fmt.Sprintf("%v != %v", a, b)
+	}
+	t.Fatal(message)
+}
+
 func testOauthClient(t *testing.T) *APIClient {
 	config := Config{
 		ClientID:       "testclient",
 		ClientSecret:   "secret",
-		Authentication: "oauth2",
+		Authentication: UseOauth2,
 		AuthCode:       "123456",
 		Endpoints: Endpoints{
 			API:        testHTTPServer.URL,
@@ -40,7 +50,7 @@ func testBasicAuthClient(t *testing.T) *APIClient {
 	config := Config{
 		ClientID:       "testclient",
 		ClientSecret:   "secret",
-		Authentication: "basicAuth",
+		Authentication: UseBasicAuth,
 		Endpoints: Endpoints{
 			API:        testHTTPServer.URL,
 			UserCenter: testHTTPServer.URL,
@@ -55,7 +65,7 @@ func testBasicAuthClient(t *testing.T) *APIClient {
 }
 
 // Real tests from here
-func Test_MakeAPIRequest(t *testing.T) {
+func Test_makeAPIRequest(t *testing.T) {
 	// Basic config
 	config := Config{
 		ClientID:     "testclient",
@@ -67,19 +77,19 @@ func Test_MakeAPIRequest(t *testing.T) {
 	}
 
 	// basicAuth
-	config.Authentication = "basicAuth"
+	config.Authentication = UseBasicAuth
 	api, err := NewClient(&config)
 	if err != nil {
 		t.Errorf("Failed to setup NewClient: %s", err)
 	}
 
 	// Fail without userIdentifier
-	if response, err := api.MakeAPIRequest("GET", testHTTPServer.URL+"/test/http/basicAuth", nil, nil, ""); response != nil || err == nil {
+	if response, err := api.makeAPIRequest("GET", testHTTPServer.URL+"/test/http/basicAuth", nil, nil, ""); response != nil || err == nil {
 		t.Errorf("Missing userIdentifier should raise err")
 	}
 
 	// Succeed with userIdentifier
-	response, err := api.MakeAPIRequest("GET", testHTTPServer.URL+"/test/http/basicAuth", nil, nil, "user123")
+	response, err := api.makeAPIRequest("GET", testHTTPServer.URL+"/test/http/basicAuth", nil, nil, "user123")
 	if response == nil || err != nil {
 		t.Errorf("HTTP call with supplied userIdentifier failed: %s", err)
 	}
@@ -90,7 +100,7 @@ func Test_MakeAPIRequest(t *testing.T) {
 	}
 
 	// oauth2
-	config.Authentication = "oauth2"
+	config.Authentication = UseOauth2
 	config.AuthCode = "123456"
 
 	api, err = NewClient(&config)
@@ -99,7 +109,7 @@ func Test_MakeAPIRequest(t *testing.T) {
 	}
 
 	// Make oauth2 call
-	if response, err := api.MakeAPIRequest("GET", testHTTPServer.URL+"/test/http/oauth2", nil, nil, ""); response == nil || err != nil {
+	if response, err := api.makeAPIRequest("GET", testHTTPServer.URL+"/test/http/oauth2", nil, nil, ""); response == nil || err != nil {
 		t.Errorf("Call failed: %#v", err)
 	}
 
@@ -107,8 +117,19 @@ func Test_MakeAPIRequest(t *testing.T) {
 	headers := map[string]string{
 		"X-Dummy-Header": "Ignored",
 	}
-	if response, err := api.MakeAPIRequest("GET", testHTTPServer.URL+"/test/http/oauth2", nil, headers, ""); response == nil || err != nil {
+	if response, err := api.makeAPIRequest("GET", testHTTPServer.URL+"/test/http/oauth2", nil, headers, ""); response == nil || err != nil {
 		t.Errorf("Call failed: %#v", err)
 	}
+}
 
+func Test_encodeURLParams(t *testing.T) {
+	params := map[string]interface{}{
+		"aInt":             9,
+		"aStrWithSpaces":   "Just a string",
+		"aStrWithEncoding": "test20%25gn%3B-%2F",
+	}
+
+	u := encodeURLParams("https://www.example.com", params)
+
+	assertEqual(t, u, "https://www.example.com?aInt=9&aStrWithEncoding=test20%2525gn%253B-%252F&aStrWithSpaces=Just+a+string", "")
 }

@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"reflect"
+	"strconv"
 )
 
 // MakeAPIRequest is a wrapper around http.NewRequest to create http
 // request and inject required headers.
-func (api *APIClient) MakeAPIRequest(verb string, url string, body io.Reader, headers map[string]string, userIdentifier string) (*http.Response, error) {
+func (api *APIClient) makeAPIRequest(verb, url string, body io.Reader, headers map[string]string, userIdentifier string) (*http.Response, error) {
 	req, err := http.NewRequest(verb, url, body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create HTTP request: %s", err)
@@ -16,9 +19,9 @@ func (api *APIClient) MakeAPIRequest(verb string, url string, body io.Reader, he
 	req.Header.Add("Accept", fmt.Sprintf("application/vnd.gini.%s+json", api.Config.APIVersion))
 	req.Header.Add("User-Agent", fmt.Sprintf("gini-api-go/%s", VERSION))
 
-	if api.Config.Authentication == "basicAuth" {
+	if reflect.TypeOf(api.Config.Authentication).Name() == "BasicAuth" {
 		if userIdentifier == "" {
-			return nil, fmt.Errorf("userIdentifier required (Authentication=basicAuth)")
+			return nil, fmt.Errorf("userIdentifier required (Authentication=BasicAuth)")
 		}
 		req.Header.Add("X-User-Identifier", userIdentifier)
 	}
@@ -32,12 +35,20 @@ func (api *APIClient) MakeAPIRequest(verb string, url string, body io.Reader, he
 	return resp, err
 }
 
-// CheckHTTPStatus compares HHTP response StatusCode against the expected code and
-// returns a error object from message or nil
-func CheckHTTPStatus(is int, should int, msg string) error {
-	if is != should {
-		return fmt.Errorf(msg)
+func encodeURLParams(baseURL string, queryParams map[string]interface{}) string {
+	u, _ := url.Parse(baseURL)
+
+	params := url.Values{}
+
+	for key, value := range queryParams {
+		switch value := value.(type) {
+		case string:
+			params.Add(key, value)
+		case int:
+			params.Add(key, strconv.Itoa(value))
+		}
 	}
 
-	return nil
+	u.RawQuery = params.Encode()
+	return u.String()
 }

@@ -5,6 +5,7 @@ import (
 	"github.com/dkerwin/gini-api-go"
 	"log"
 	"os"
+	"time"
 )
 
 // Very simplistic example. You shoud have a lot more error handling in place
@@ -20,7 +21,7 @@ func ExampleNewClient() {
 		ClientSecret:   "********",
 		Username:       "user1",
 		Password:       "secret",
-		Authentication: "oauth2",
+		Authentication: giniapi.UseOauth2,
 	})
 
 	if err != nil {
@@ -28,10 +29,10 @@ func ExampleNewClient() {
 	}
 
 	// Read a PDF document
-	bodyBuf, _ := os.Open("/tmp/invoice.pdf")
+	document, _ := os.Open("/tmp/invoice.pdf")
 
 	// Upload document to gini without doctype hint and user identifier
-	doc, _ := api.Upload(bodyBuf, "invoice.pdf", "", "", 10)
+	doc, _ := api.Upload(document, giniapi.UploadOptions{FileName: "invoice.pdf", PollTimeout: 10 * time.Second})
 
 	// Get extractions from our uploaded document
 	extractions, _ := doc.GetExtractions()
@@ -47,7 +48,7 @@ func ExampleNewClient() {
 	api, err = giniapi.NewClient(&giniapi.Config{
 		ClientID:       "MY_CLIENT_ID",
 		ClientSecret:   "********",
-		Authentication: "basicAuth",
+		Authentication: giniapi.UseBasicAuth,
 	})
 
 	if err != nil {
@@ -55,10 +56,10 @@ func ExampleNewClient() {
 	}
 
 	// Read a PDF document
-	bodyBuf, _ = os.Open("/tmp/invoice.pdf")
+	document, _ = os.Open("/tmp/invoice.pdf")
 
 	// Upload document to gini without doctype hint and user identifier
-	doc, _ = api.Upload(bodyBuf, "invoice.pdf", "", "user123", 10)
+	doc, _ = api.Upload(document, giniapi.UploadOptions{FileName: "invoice.pdf", UserIdentifier: "user123", PollTimeout: 10 * time.Second})
 
 	// Get extractions from our uploaded document
 	extractions, _ = doc.GetExtractions()

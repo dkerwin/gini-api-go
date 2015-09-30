@@ -45,17 +45,3 @@ type Region struct {
 	PageCoordinates
 	Type string
 }
-
-// ListParams
-type ListParams struct {
-	Limit  int
-	Offset int
-}
-
-// SearchParams
-type SearchParams struct {
-	Query  string
-	Type   string
-	Limit  int
-	Offset int
-}
