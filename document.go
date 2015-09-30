@@ -67,22 +67,30 @@ func (d *Document) Poll(timeout time.Duration) error {
 	start := time.Now()
 	defer func() { d.Timing.Processing = time.Since(start) }()
 
-	respChannel := make(chan bool, 1)
+	done := make(chan bool, 1)
+	quit := make(chan bool, 1)
 
 	go func() {
-		respChannel <- d.WaitForCompletion()
+		for {
+			select {
+			case <-quit:
+				return
+			default:
+				doc, _ := d.client.Get(d.Links.Document, d.Owner)
+				if doc.Progress == "COMPLETED" || doc.Progress == "ERROR" {
+					done <- true
+				}
+			}
+		}
 	}()
 
 	select {
-	case resp := <-respChannel:
-		if resp == true {
-			return nil
-		}
+	case <-done:
+		return nil
 	case <-time.After(timeout):
+		quit <- true
 		return fmt.Errorf("processing timeout after %v seconds", timeout.Seconds())
 	}
-
-	return nil
 }
 
 // Update document struct from self-contained document link
@@ -103,18 +111,6 @@ func (d *Document) Update() error {
 	}
 
 	return err
-}
-
-// WaitForCompletion checks document progress and returns true on
-// COMPLETED or ERROR
-func (d *Document) WaitForCompletion() bool {
-	for {
-		doc, _ := d.client.Get(d.Links.Document, d.Owner)
-		if doc.Progress == "COMPLETED" || doc.Progress == "ERROR" {
-			return true
-		}
-	}
-	return false
 }
 
 // Delete a document
