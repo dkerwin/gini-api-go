@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -32,6 +33,24 @@ func (api *APIClient) makeAPIRequest(verb, url string, body io.Reader, headers m
 	}
 
 	resp, err := api.HTTPClient.Do(req)
+
+	// Debug HTTP calls?
+	if api.Config.HTTPDebug {
+		debug, err := httputil.DumpRequest(resp.Request, false)
+		if err != nil {
+			api.Config.RequestDebug <- []byte(fmt.Sprintf("Failed to dump request: %s", err))
+		} else {
+			api.Config.RequestDebug <- debug
+		}
+
+		debug, err = httputil.DumpResponse(resp, true)
+		if err != nil {
+			api.Config.ResponseDebug <- []byte(fmt.Sprintf("Failed to dump response: %s", err))
+		} else {
+			api.Config.ResponseDebug <- debug
+		}
+	}
+
 	return resp, err
 }
 

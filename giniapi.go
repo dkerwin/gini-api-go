@@ -69,6 +69,11 @@ type Config struct {
 	// oauth2: auth_code || password credentials
 	// basicAuth: basic auth + user identifier
 	Authentication APIAuthScheme
+	// Debug
+	HTTPDebug bool
+
+	RequestDebug  chan []byte
+	ResponseDebug chan []byte
 }
 
 func (c *Config) Verify() error {
