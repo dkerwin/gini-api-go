@@ -171,10 +171,17 @@ func (d *Document) GetLayout() (*Layout, error) {
 }
 
 // GetExtractions returns a documents extractions in a Extractions struct
-func (d *Document) GetExtractions() (*Extractions, error) {
+func (d *Document) GetExtractions(incubator bool) (*Extractions, error) {
 	var extractions Extractions
+	var headers map[string]string
 
-	resp, err := d.client.makeAPIRequest("GET", d.Links.Extractions, nil, nil, d.Owner)
+	if incubator {
+		headers = map[string]string{
+			"Accept": "application/vnd.gini.incubator+json",
+		}
+	}
+
+	resp, err := d.client.makeAPIRequest("GET", d.Links.Extractions, nil, headers, d.Owner)
 
 	if err != nil {
 		return nil, err
