@@ -105,19 +105,19 @@ func Test_DocumentSubmitFeedback(t *testing.T) {
 		},
 	}
 
-	feedback := map[string]Extraction{
-		"iban": Extraction{
-			Entity: "iban",
-			Value:  "DE22222111117777766666",
+	feedback := map[string]map[string]interface{}{
+		"iban": map[string]interface{}{
+			"entity": "iban",
+			"value":  "DE22222111117777766666",
 		},
 	}
 
 	// single label
 	assertEqual(t, doc.SubmitFeedback(feedback), nil, "")
 
-	feedback["bic"] = Extraction{
-		Entity: "bic",
-		Value:  "HYVEDEMMXXX",
+	feedback["bic"] = map[string]interface{}{
+		"entity": "bic",
+		"value":  "HYVEDEMMXXX",
 	}
 
 	// multiple labels

@@ -12,9 +12,9 @@ type Box struct {
 // Extraction struct
 type Extraction struct {
 	Box        `json:"box"`
-	Candidates string `json:"candidates"`
-	Entity     string `json:"entity"`
-	Value      string `json:"value"`
+	Candidates string `json:"candidates,omitempty"`
+	Entity     string `json:"entity,omitempty"`
+	Value      string `json:"value,omitempty"`
 }
 
 // Document extractions struct

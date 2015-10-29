@@ -226,13 +226,9 @@ func (d *Document) GetProcessed() ([]byte, error) {
 }
 
 // SubmitFeedback submits feedback from map
-func (d *Document) SubmitFeedback(feedback map[string]Extraction) error {
-	feedbackMap := map[string]map[string]Extraction{
-		"feedback": map[string]Extraction{},
-	}
-
-	for key, extraction := range feedback {
-		feedbackMap["feedback"][key] = extraction
+func (d *Document) SubmitFeedback(feedback map[string]map[string]interface{}) error {
+	feedbackMap := map[string]map[string]map[string]interface{}{
+		"feedback": feedback,
 	}
 
 	feedbackBody, err := json.Marshal(feedbackMap)
