@@ -63,6 +63,9 @@ func (d *Document) String() string {
 // Poll the progress state of a document and return nil when the processing
 // has completed (successful or failed). On timeout return error
 func (d *Document) Poll(timeout time.Duration) error {
+	// store upload duration. Will be overwritten otherwise
+	uploadDuration := d.Timing.Upload
+
 	start := time.Now()
 	defer func() { d.Timing.Processing = time.Since(start) }()
 
@@ -93,6 +96,10 @@ func (d *Document) Poll(timeout time.Duration) error {
 			return newHTTPError(ErrDocumentProcessing, "", nil, nil)
 		}
 		*d = *doc
+
+		// restore upload duration
+		d.Timing.Upload = uploadDuration
+
 		return nil
 	case <-time.After(timeout):
 		quit <- true
