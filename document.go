@@ -122,7 +122,7 @@ func (d *Document) Delete() error {
 	resp, err := d.client.makeAPIRequest("DELETE", d.Links.Document, nil, nil, d.Owner)
 
 	if err != nil {
-		return nil, newHTTPError(ErrHTTPDeleteFailed, "", err, resp)
+		return newHTTPError(ErrHTTPDeleteFailed, "", err, resp)
 	}
 
 	if resp.StatusCode != http.StatusNoContent {
