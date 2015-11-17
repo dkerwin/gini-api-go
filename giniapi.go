@@ -1,15 +1,15 @@
-// Copyright 2015 The giniapi Authors. All rights reserved.
+// Copyright 2015 The gini-api-go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 /*
-Package giniapit interacts with Gini's API service to make sense of unstructured
+Package giniapi interacts with Gini's API service to make sense of unstructured
 documents. Please visit http://developer.gini.net/gini-api/html/index.html
-for more details about the Gini API.
+for more details about the Gini API and it's capabilities.
 
 API features
 
-Suppoted API calls include:
+Supported API calls include:
 
 	- Upload documents (native, scanned, text)
 	- List a users documents
@@ -21,7 +21,7 @@ Suppoted API calls include:
 
 Contributing
 
-It's awesome that you consider contributing to gini-api-go. Here's how it's done:
+It's awesome that you consider contributing to gini-api-go. Here are the 5 easy steps you should follow:
 
 	- Fork repository on Github
 	- Create a topic/feature branch
@@ -89,7 +89,7 @@ func (c *Config) Verify() error {
 
 	cType := reflect.TypeOf(*c)
 
-	// Fix potential missing APIVersion with default
+	// Fix potentially missing APIVersion with default
 	if c.APIVersion == "" {
 		f, _ := cType.FieldByName("APIVersion")
 		c.APIVersion = f.Tag.Get("default")
@@ -164,7 +164,7 @@ func NewClient(config *Config) (*APIClient, error) {
 		return nil, err
 	}
 
-	// Get http client based on the selected Authentication
+	// Get http client based on the selected authentication scheme
 	client, err := newHTTPClient(config)
 	if err != nil {
 		return nil, err

@@ -30,10 +30,10 @@ var (
 
 	ErrHTTPPostFailed   = "failed to complete POST request"
 	ErrHTTPGetFailed    = "failed to complete GET request"
-	ErrHTTPDeleteFailed = "failed to complete GET request"
+	ErrHTTPDeleteFailed = "failed to complete DELETE request"
 )
 
-// APIError provides additional error informations
+// APIError provides additional error information
 type APIError struct {
 	StatusCode int
 	Message    string
