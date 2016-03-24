@@ -120,6 +120,7 @@ func (d *Document) Update() error {
 // Delete a document
 func (d *Document) Delete() error {
 	resp, err := d.client.makeAPIRequest("DELETE", d.Links.Document, nil, nil, d.Owner)
+	defer resp.Body.Close()
 
 	if err != nil {
 		return newHTTPError(ErrHTTPDeleteFailed, "", err, resp)
@@ -143,6 +144,7 @@ func (d *Document) ErrorReport(summary string, description string) error {
 	u := encodeURLParams(fmt.Sprintf("%s/errorreport", d.Links.Document), params)
 
 	resp, err := d.client.makeAPIRequest("POST", u, nil, nil, d.Owner)
+	defer resp.Body.Close()
 
 	if err != nil {
 		return err
@@ -161,6 +163,7 @@ func (d *Document) GetLayout() (*Layout, error) {
 	var layout Layout
 
 	resp, err := d.client.makeAPIRequest("GET", d.Links.Layout, nil, nil, "")
+	defer resp.Body.Close()
 
 	if err != nil {
 		return nil, err
@@ -189,6 +192,7 @@ func (d *Document) GetExtractions(incubator bool) (*Extractions, error) {
 	}
 
 	resp, err := d.client.makeAPIRequest("GET", d.Links.Extractions, nil, headers, d.Owner)
+	defer resp.Body.Close()
 
 	if err != nil {
 		return nil, err
@@ -244,6 +248,8 @@ func (d *Document) SubmitFeedback(feedback map[string]map[string]interface{}) er
 	}
 
 	resp, err := d.client.makeAPIRequest("PUT", d.Links.Extractions, bytes.NewReader(feedbackBody), nil, d.Owner)
+	defer resp.Body.Close()
+
 	if err != nil {
 		return err
 	}
