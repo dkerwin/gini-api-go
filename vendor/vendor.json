@@ -1,0 +1,82 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "iIUYZyoanCQQTUaWsu8b+iOSPt4=",
+			"path": "github.com/gorilla/context",
+			"revision": "215affda49addc4c8ef7e2534915df2c8c35c6cd"
+		},
+		{
+			"checksumSHA1": "oxIMTV/z4A/zb7PxPhQROiAARSo=",
+			"path": "github.com/gorilla/mux",
+			"revision": "94903de8c98a68d8b4483c529b26a5d146e386a2"
+		},
+		{
+			"checksumSHA1": "hKZGpbFuCrkE4s1vxubKK1aFlfI=",
+			"path": "golang.org/x/net/context",
+			"revision": "169f42267807fe93f4a4b0150583e410aefafe4e"
+		},
+		{
+			"checksumSHA1": "s8z/dhVGZI5vmLGdiA1OKtN0BoE=",
+			"path": "golang.org/x/oauth2",
+			"revision": "2159a4568433098650737847e3b175db37178b7d"
+		},
+		{
+			"checksumSHA1": "QDurgMzM9h+uzcvST3h2jvQQo+g=",
+			"path": "golang.org/x/oauth2/clientcredentials",
+			"revision": "2159a4568433098650737847e3b175db37178b7d"
+		},
+		{
+			"checksumSHA1": "+lhWsyZG8aCrhvbTM2xwfykxTZ0=",
+			"path": "golang.org/x/oauth2/facebook",
+			"revision": "2159a4568433098650737847e3b175db37178b7d"
+		},
+		{
+			"checksumSHA1": "JKGYMHTP+Enh6A6ukZT3I2/bJVQ=",
+			"path": "golang.org/x/oauth2/github",
+			"revision": "2159a4568433098650737847e3b175db37178b7d"
+		},
+		{
+			"checksumSHA1": "fVV1W/ti8s8TgTDG6QxmZhG3D/s=",
+			"path": "golang.org/x/oauth2/google",
+			"revision": "2159a4568433098650737847e3b175db37178b7d"
+		},
+		{
+			"checksumSHA1": "aql/i4ppXpn4JI04xMIWMk11Wz4=",
+			"path": "golang.org/x/oauth2/internal",
+			"revision": "2159a4568433098650737847e3b175db37178b7d"
+		},
+		{
+			"checksumSHA1": "LqBT3cwYLU+ufZmF9f+V7zHZg3U=",
+			"path": "golang.org/x/oauth2/jws",
+			"revision": "2159a4568433098650737847e3b175db37178b7d"
+		},
+		{
+			"checksumSHA1": "jL08IHZGYSCX1bYoVsJFMRMag/A=",
+			"path": "golang.org/x/oauth2/jwt",
+			"revision": "2159a4568433098650737847e3b175db37178b7d"
+		},
+		{
+			"checksumSHA1": "CEhs994GbWt9WpyULUxvs9ZSV4A=",
+			"path": "golang.org/x/oauth2/linkedin",
+			"revision": "2159a4568433098650737847e3b175db37178b7d"
+		},
+		{
+			"checksumSHA1": "3QLpu1DgwoliVeVlMOJWfPrTTpo=",
+			"path": "golang.org/x/oauth2/odnoklassniki",
+			"revision": "2159a4568433098650737847e3b175db37178b7d"
+		},
+		{
+			"checksumSHA1": "ICWrCLQCynYbhO5CS7oP/Sh+KTc=",
+			"path": "golang.org/x/oauth2/paypal",
+			"revision": "2159a4568433098650737847e3b175db37178b7d"
+		},
+		{
+			"checksumSHA1": "4aNn3UZKb5ZGLHJVMeG2A7bvBpE=",
+			"path": "golang.org/x/oauth2/vk",
+			"revision": "2159a4568433098650737847e3b175db37178b7d"
+		}
+	],
+	"rootPath": "github.com/dkerwin/gini-api-go"
+}

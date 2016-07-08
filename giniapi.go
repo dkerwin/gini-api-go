@@ -44,7 +44,7 @@ import (
 
 const (
 	// VERSION is the API client version
-	VERSION string = "0.2.1"
+	VERSION string = "0.2.2"
 )
 
 // Config to setup Gini API connection
