@@ -3,79 +3,98 @@
 	"ignore": "test",
 	"package": [
 		{
+			"path": "appengine",
+			"revision": ""
+		},
+		{
+			"path": "appengine_internal",
+			"revision": ""
+		},
+		{
+			"path": "appengine_internal/base",
+			"revision": ""
+		},
+		{
+			"path": "context",
+			"revision": ""
+		},
+		{
+			"checksumSHA1": "M/1HiQFl2DyE+q3pFf8swvAQ3MY=",
+			"path": "github.com/golang/protobuf/proto",
+			"revision": "3852dcfda249c2097355a6aabb199a28d97b30df",
+			"revisionTime": "2016-06-29T21:10:53Z"
+		},
+		{
 			"checksumSHA1": "iIUYZyoanCQQTUaWsu8b+iOSPt4=",
 			"path": "github.com/gorilla/context",
-			"revision": "215affda49addc4c8ef7e2534915df2c8c35c6cd"
+			"revision": "aed02d124ae4a0e94fea4541c8effd05bf0c8296",
+			"revisionTime": "2016-05-25T20:33:19Z"
 		},
 		{
-			"checksumSHA1": "oxIMTV/z4A/zb7PxPhQROiAARSo=",
+			"checksumSHA1": "H5f7qNqZl8N83s9cyC7Q1eWgAtI=",
 			"path": "github.com/gorilla/mux",
-			"revision": "94903de8c98a68d8b4483c529b26a5d146e386a2"
+			"revision": "9fa818a44c2bf1396a17f9d5a3c0f6dd39d2ff8e",
+			"revisionTime": "2016-06-05T23:35:21Z"
 		},
 		{
-			"checksumSHA1": "hKZGpbFuCrkE4s1vxubKK1aFlfI=",
+			"checksumSHA1": "9jjO5GjLa0XF/nfWihF02RoH4qc=",
 			"path": "golang.org/x/net/context",
-			"revision": "169f42267807fe93f4a4b0150583e410aefafe4e"
+			"revision": "f841c39de738b1d0df95b5a7187744f0e03d8112",
+			"revisionTime": "2016-06-30T00:53:42Z"
 		},
 		{
-			"checksumSHA1": "s8z/dhVGZI5vmLGdiA1OKtN0BoE=",
+			"checksumSHA1": "mktBVED98G2vv+OKcSgtnFVZC1Y=",
 			"path": "golang.org/x/oauth2",
-			"revision": "2159a4568433098650737847e3b175db37178b7d"
+			"revision": "7357e96168422ba1e6e7f21075713b72d58764e7",
+			"revisionTime": "2016-07-06T23:03:55Z"
 		},
 		{
-			"checksumSHA1": "QDurgMzM9h+uzcvST3h2jvQQo+g=",
-			"path": "golang.org/x/oauth2/clientcredentials",
-			"revision": "2159a4568433098650737847e3b175db37178b7d"
-		},
-		{
-			"checksumSHA1": "+lhWsyZG8aCrhvbTM2xwfykxTZ0=",
-			"path": "golang.org/x/oauth2/facebook",
-			"revision": "2159a4568433098650737847e3b175db37178b7d"
-		},
-		{
-			"checksumSHA1": "JKGYMHTP+Enh6A6ukZT3I2/bJVQ=",
-			"path": "golang.org/x/oauth2/github",
-			"revision": "2159a4568433098650737847e3b175db37178b7d"
-		},
-		{
-			"checksumSHA1": "fVV1W/ti8s8TgTDG6QxmZhG3D/s=",
-			"path": "golang.org/x/oauth2/google",
-			"revision": "2159a4568433098650737847e3b175db37178b7d"
-		},
-		{
-			"checksumSHA1": "aql/i4ppXpn4JI04xMIWMk11Wz4=",
+			"checksumSHA1": "D3v/aqfB9swlaZcSksCoF+lbOqo=",
 			"path": "golang.org/x/oauth2/internal",
-			"revision": "2159a4568433098650737847e3b175db37178b7d"
+			"revision": "7357e96168422ba1e6e7f21075713b72d58764e7",
+			"revisionTime": "2016-07-06T23:03:55Z"
 		},
 		{
-			"checksumSHA1": "LqBT3cwYLU+ufZmF9f+V7zHZg3U=",
-			"path": "golang.org/x/oauth2/jws",
-			"revision": "2159a4568433098650737847e3b175db37178b7d"
+			"checksumSHA1": "G9Xp1ScdsfcKsw+PcWunivRRP3o=",
+			"path": "google.golang.org/appengine/internal",
+			"revision": "267c27e7492265b84fc6719503b14a1e17975d79",
+			"revisionTime": "2016-06-21T05:59:22Z"
 		},
 		{
-			"checksumSHA1": "jL08IHZGYSCX1bYoVsJFMRMag/A=",
-			"path": "golang.org/x/oauth2/jwt",
-			"revision": "2159a4568433098650737847e3b175db37178b7d"
+			"checksumSHA1": "TsNO8P0xUlLNyh3Ic/tzSp/fDWM=",
+			"path": "google.golang.org/appengine/internal/base",
+			"revision": "267c27e7492265b84fc6719503b14a1e17975d79",
+			"revisionTime": "2016-06-21T05:59:22Z"
 		},
 		{
-			"checksumSHA1": "CEhs994GbWt9WpyULUxvs9ZSV4A=",
-			"path": "golang.org/x/oauth2/linkedin",
-			"revision": "2159a4568433098650737847e3b175db37178b7d"
+			"checksumSHA1": "5QsV5oLGSfKZqTCVXP6NRz5T4Tw=",
+			"path": "google.golang.org/appengine/internal/datastore",
+			"revision": "267c27e7492265b84fc6719503b14a1e17975d79",
+			"revisionTime": "2016-06-21T05:59:22Z"
 		},
 		{
-			"checksumSHA1": "3QLpu1DgwoliVeVlMOJWfPrTTpo=",
-			"path": "golang.org/x/oauth2/odnoklassniki",
-			"revision": "2159a4568433098650737847e3b175db37178b7d"
+			"checksumSHA1": "Gep2T9zmVYV8qZfK2gu3zrmG6QE=",
+			"path": "google.golang.org/appengine/internal/log",
+			"revision": "267c27e7492265b84fc6719503b14a1e17975d79",
+			"revisionTime": "2016-06-21T05:59:22Z"
 		},
 		{
-			"checksumSHA1": "ICWrCLQCynYbhO5CS7oP/Sh+KTc=",
-			"path": "golang.org/x/oauth2/paypal",
-			"revision": "2159a4568433098650737847e3b175db37178b7d"
+			"checksumSHA1": "a1XY7rz3BieOVqVI2Et6rKiwQCk=",
+			"path": "google.golang.org/appengine/internal/remote_api",
+			"revision": "267c27e7492265b84fc6719503b14a1e17975d79",
+			"revisionTime": "2016-06-21T05:59:22Z"
 		},
 		{
-			"checksumSHA1": "4aNn3UZKb5ZGLHJVMeG2A7bvBpE=",
-			"path": "golang.org/x/oauth2/vk",
-			"revision": "2159a4568433098650737847e3b175db37178b7d"
+			"checksumSHA1": "QtAbHtHmDzcf6vOV9eqlCpKgjiw=",
+			"path": "google.golang.org/appengine/internal/urlfetch",
+			"revision": "267c27e7492265b84fc6719503b14a1e17975d79",
+			"revisionTime": "2016-06-21T05:59:22Z"
+		},
+		{
+			"checksumSHA1": "akOV9pYnCbcPA8wJUutSQVibdyg=",
+			"path": "google.golang.org/appengine/urlfetch",
+			"revision": "267c27e7492265b84fc6719503b14a1e17975d79",
+			"revisionTime": "2016-06-21T05:59:22Z"
 		}
 	],
 	"rootPath": "github.com/dkerwin/gini-api-go"
