@@ -185,11 +185,13 @@ func (api *APIClient) Upload(document io.Reader, options UploadOptions) (*Docume
 	start := time.Now()
 
 	resp, err := api.makeAPIRequest("POST", fmt.Sprintf("%s/documents", api.Config.Endpoints.API), document, nil, options.UserIdentifier)
-	defer resp.Body.Close()
 
 	if err != nil {
 		return nil, newHTTPError(ErrHTTPPostFailed, "", err, resp)
 	}
+
+	defer resp.Body.Close()
+
 	if resp.StatusCode != http.StatusCreated {
 		return nil, newHTTPError(ErrUploadFailed, "", err, resp)
 	}
@@ -210,11 +212,13 @@ func (api *APIClient) Upload(document io.Reader, options UploadOptions) (*Docume
 // Get Document struct from URL
 func (api *APIClient) Get(url, userIdentifier string) (*Document, error) {
 	resp, err := api.makeAPIRequest("GET", url, nil, nil, userIdentifier)
-	defer resp.Body.Close()
 
 	if err != nil {
 		return nil, newHTTPError(ErrHTTPGetFailed, "", err, resp)
 	}
+
+	defer resp.Body.Close()
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, newHTTPError(ErrDocumentGet, "", err, resp)
 	}
@@ -246,11 +250,12 @@ func (api *APIClient) List(options ListOptions) (*DocumentSet, error) {
 	u := encodeURLParams(fmt.Sprintf("%s/documents", api.Config.Endpoints.API), params)
 
 	resp, err := api.makeAPIRequest("GET", u, nil, nil, options.UserIdentifier)
-	defer resp.Body.Close()
 
 	if err != nil {
 		return nil, newHTTPError(ErrHTTPGetFailed, "", err, resp)
 	}
+
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, newHTTPError(ErrDocumentList, "", err, resp)
@@ -287,11 +292,12 @@ func (api *APIClient) Search(options SearchOptions) (*DocumentSet, error) {
 	u := encodeURLParams(fmt.Sprintf("%s/search", api.Config.Endpoints.API), params)
 
 	resp, err := api.makeAPIRequest("GET", u, nil, nil, options.UserIdentifier)
-	defer resp.Body.Close()
 
 	if err != nil {
 		return nil, newHTTPError(ErrHTTPGetFailed, "", err, resp)
 	}
+
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, newHTTPError(ErrDocumentSearch, "", err, resp)
