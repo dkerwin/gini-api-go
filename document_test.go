@@ -1,6 +1,7 @@
 package giniapi
 
 import (
+	"context"
 	"testing"
 	"time"
 )
@@ -31,9 +32,10 @@ func Test_DocumentUpdate(t *testing.T) {
 		},
 	}
 
-	err := doc.Update()
+	ctx := context.Background()
+	resp := doc.Update(ctx)
 
-	assertEqual(t, err, nil, "")
+	assertEqual(t, resp.Error, nil, "")
 	assertEqual(t, doc.Name, "Updated!", "")
 }
 
@@ -45,19 +47,10 @@ func Test_DocumentDelete(t *testing.T) {
 		},
 	}
 
-	assertEqual(t, doc.Delete(), nil, "")
-}
+	ctx := context.Background()
+	resp := doc.Delete(ctx)
 
-func Test_DocumentErrorReport(t *testing.T) {
-	doc := Document{
-		client: testOauthClient(t),
-		ID:     "12345",
-		Links: Links{
-			Document: testHTTPServer.URL + "/test/document",
-		},
-	}
-
-	assertEqual(t, doc.ErrorReport("", ""), nil, "")
+	assertEqual(t, resp.Error, nil, "")
 }
 
 func Test_DocumentGetLayout(t *testing.T) {
@@ -68,8 +61,10 @@ func Test_DocumentGetLayout(t *testing.T) {
 		},
 	}
 
-	_, err := doc.GetLayout()
-	assertEqual(t, err, nil, "")
+	ctx := context.Background()
+	_, resp := doc.GetLayout(ctx)
+
+	assertEqual(t, resp.Error, nil, "")
 }
 
 func Test_DocumentGetExtractions(t *testing.T) {
@@ -80,8 +75,10 @@ func Test_DocumentGetExtractions(t *testing.T) {
 		},
 	}
 
-	_, err := doc.GetExtractions(false)
-	assertEqual(t, err, nil, "")
+	ctx := context.Background()
+	_, resp := doc.GetExtractions(ctx, false)
+
+	assertEqual(t, resp.Error, nil, "")
 }
 
 func Test_DocumentGetProcessed(t *testing.T) {
@@ -92,8 +89,10 @@ func Test_DocumentGetProcessed(t *testing.T) {
 		},
 	}
 
-	docBytes, err := doc.GetProcessed()
-	assertEqual(t, err, nil, "")
+	ctx := context.Background()
+	docBytes, resp := doc.GetProcessed(ctx)
+
+	assertEqual(t, resp.Error, nil, "")
 	assertEqual(t, string(docBytes), "get processed", "")
 }
 
@@ -112,14 +111,20 @@ func Test_DocumentSubmitFeedback(t *testing.T) {
 		},
 	}
 
+	ctx := context.Background()
+
+	resp := doc.SubmitFeedback(ctx, feedback)
+
 	// single label
-	assertEqual(t, doc.SubmitFeedback(feedback), nil, "")
+	assertEqual(t, resp.Error, nil, "")
 
 	feedback["bic"] = map[string]interface{}{
 		"entity": "bic",
 		"value":  "HYVEDEMMXXX",
 	}
 
+	resp = doc.SubmitFeedback(ctx, feedback)
+
 	// multiple labels
-	assertEqual(t, doc.SubmitFeedback(feedback), nil, "")
+	assertEqual(t, resp.Error, nil, "")
 }

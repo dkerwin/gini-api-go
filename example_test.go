@@ -1,6 +1,7 @@
 package giniapi_test
 
 import (
+	"context"
 	"fmt"
 	"github.com/dkerwin/gini-api-go"
 	"log"
@@ -28,14 +29,19 @@ func ExampleNewClient() {
 		log.Panicf("Gini API login failed: %s", err)
 	}
 
+	// create context
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
 	// Read a PDF document
 	document, _ := os.Open("/tmp/invoice.pdf")
 
 	// Upload document to gini without doctype hint and user identifier
-	doc, _ := api.Upload(document, giniapi.UploadOptions{FileName: "invoice.pdf", PollTimeout: 10 * time.Second})
+	doc, _ := api.UploadAndWaitForCompletion(ctx, document, giniapi.UploadOptions{FileName: "invoice.pdf"}, 500*time.Millisecond)
 
 	// Get extractions from our uploaded document
-	extractions, _ := doc.GetExtractions(false)
+	extractions, _ := doc.GetExtractions(ctx, false)
 
 	// Print IBAN
 	fmt.Printf("IBAN has been found: %s Woohoo!\n", extractions.GetValue("iban"))
@@ -59,10 +65,10 @@ func ExampleNewClient() {
 	document, _ = os.Open("/tmp/invoice.pdf")
 
 	// Upload document to gini without doctype hint and user identifier
-	doc, _ = api.Upload(document, giniapi.UploadOptions{FileName: "invoice.pdf", UserIdentifier: "user123", PollTimeout: 10 * time.Second})
+	doc, _ = api.UploadAndWaitForCompletion(ctx, document, giniapi.UploadOptions{FileName: "invoice.pdf", UserIdentifier: "user123"}, 500*time.Millisecond)
 
 	// Get extractions from our uploaded document
-	extractions, _ = doc.GetExtractions(false)
+	extractions, _ = doc.GetExtractions(ctx, false)
 
 	// Print IBAN
 	fmt.Printf("IBAN has been found: %s Woohoo!\n", extractions.GetValue("iban"))

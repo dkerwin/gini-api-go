@@ -1,4 +1,4 @@
-// Copyright 2015 The gini-api-go Authors. All rights reserved.
+// Copyright 2015-2018 The gini-api-go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -33,7 +33,9 @@ It's awesome that you consider contributing to gini-api-go. Here are the 5 easy 
 package giniapi
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -44,7 +46,28 @@ import (
 
 const (
 	// VERSION is the API client version
-	VERSION string = "0.2.2"
+	VERSION                   = "1.0.0"
+	ErrConfigInvalid          = "failed to initialize config object"
+	ErrMissingCredentials     = "username or password cannot be empty in Oauth2 flow"
+	ErrOauthAuthCodeExchange  = "failed to exchange oauth2 auth code"
+	ErrOauthCredentials       = "failed to obtain token with username/password"
+	ErrOauthParametersMissing = "oauth2 authentication requires AuthCode or Username + Password"
+	ErrUploadFailed           = "failed to upoad document"
+	ErrDocumentGet            = "failed to GET document object"
+	ErrDocumentParse          = "failed to parse document json"
+	ErrDocumentRead           = "failed to read document body"
+	ErrDocumentList           = "failed to get document list"
+	ErrDocumentTimeout        = "failed to process document in time"
+	ErrDocumentProcessing     = "failed to process document"
+	ErrDocumentDelete         = "failed to delete document"
+	ErrDocumentLayout         = "failed to retrieve layout"
+	ErrDocumentExtractions    = "failed to retrieve extractions"
+	ErrDocumentProcessed      = "failed to retrieve processed document"
+	ErrDocumentFeedback       = "failed to submit feedback"
+	ErrHTTPPostFailed         = "failed to complete POST request"
+	ErrHTTPGetFailed          = "failed to complete GET request"
+	ErrHTTPDeleteFailed       = "failed to complete DELETE request"
+	ErrHTTPPutFailed          = "failed to complete PUT request"
 )
 
 // Config to setup Gini API connection
@@ -69,21 +92,16 @@ type Config struct {
 	// oauth2: auth_code || password credentials
 	// basicAuth: basic auth + user identifier
 	Authentication APIAuthScheme
-	// Debug
-	HTTPDebug bool
-
-	RequestDebug  chan []byte
-	ResponseDebug chan []byte
 }
 
 func (c *Config) Verify() error {
 	if c.ClientID == "" || c.ClientSecret == "" {
-		return newHTTPError(ErrConfigInvalid, "", nil, nil)
+		return errors.New(ErrConfigInvalid)
 	}
 
 	if reflect.TypeOf(c.Authentication).Name() == "Oauth2" {
 		if c.AuthCode == "" && (c.Username == "" || c.Password == "") {
-			return newHTTPError(ErrMissingCredentials, "", nil, nil)
+			return errors.New(ErrMissingCredentials)
 		}
 	}
 
@@ -110,6 +128,20 @@ func (c *Config) Verify() error {
 	return nil
 }
 
+// APIResponse will transport about the request back to the caller
+type APIResponse struct {
+	// Error: stores error object encountered on the way
+	Error error
+	// Message: error message with more context
+	Message string
+	// DocumentId: internal Id of the document. Can be empty
+	DocumentId string
+	// RequestId: request Id returned for the request to the gini API
+	RequestId string
+	// HttpResponse: full response object
+	HttpResponse *http.Response
+}
+
 // Endpoints to access API and Usercenter
 type Endpoints struct {
 	API        string `default:"https://api.gini.net"`
@@ -118,18 +150,9 @@ type Endpoints struct {
 
 // UploadOptions specify parameters to the Upload function
 type UploadOptions struct {
-	PollTimeout    time.Duration
 	FileName       string
 	DocType        string
 	UserIdentifier string
-}
-
-// Timeout returns a default timeout of 30 when PollTimeout is uninitialized
-func (o *UploadOptions) Timeout() time.Duration {
-	if o.PollTimeout == 0 {
-		return 30 * time.Second
-	}
-	return o.PollTimeout
 }
 
 // ListOptions specify parameters to the List function
@@ -137,15 +160,6 @@ type ListOptions struct {
 	Limit          int
 	Offset         int
 	UserIdentifier string
-}
-
-// SearchOptions specify parameters to the List function
-type SearchOptions struct {
-	Query          string
-	Type           string
-	UserIdentifier string
-	Limit          int
-	Offset         int
 }
 
 // APIClient is the main interface for the user
@@ -165,9 +179,9 @@ func NewClient(config *Config) (*APIClient, error) {
 	}
 
 	// Get http client based on the selected authentication scheme
-	client, err := newHTTPClient(config)
-	if err != nil {
-		return nil, err
+	client, resp := newHTTPClient(config)
+	if resp.Error != nil {
+		return nil, resp.Error
 	}
 
 	return &APIClient{
@@ -177,71 +191,87 @@ func NewClient(config *Config) (*APIClient, error) {
 
 }
 
-// Upload a document from a given io.Reader objct (document). Additional options can be
+// Upload a document from a given io.Reader object (document). Additional options can be
 // passed with a instance of UploadOptions. FileName and DocType are optional and can be empty.
 // UserIdentifier is required if Authentication method is "basic_auth".
 // Upload time is measured and stored in Timing struct (part of Document).
-func (api *APIClient) Upload(document io.Reader, options UploadOptions) (*Document, error) {
+func (api *APIClient) Upload(ctx context.Context, document io.Reader, options UploadOptions) (*Document, APIResponse) {
 	start := time.Now()
 
-	resp, err := api.makeAPIRequest("POST", fmt.Sprintf("%s/documents", api.Config.Endpoints.API), document, nil, options.UserIdentifier)
-
-	if err != nil {
-		return nil, newHTTPError(ErrHTTPPostFailed, "", err, resp)
-	}
-
+	resp, err := api.makeAPIRequest(ctx, "POST", fmt.Sprintf("%s/documents", api.Config.Endpoints.API), document, nil, options.UserIdentifier)
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusCreated {
-		return nil, newHTTPError(ErrUploadFailed, "", err, resp)
+	if err != nil {
+		return nil, apiResponse(ErrHTTPPostFailed, "", resp, err)
 	}
+
+	if resp.StatusCode != http.StatusCreated {
+		return nil, apiResponse(ErrUploadFailed, "", resp, err)
+	}
+
 	uploadDuration := time.Since(start)
 
-	doc, err := api.Get(resp.Header.Get("Location"), options.UserIdentifier)
+	// Fetch the document
+	doc, response := api.Get(ctx, resp.Header.Get("Location"), options.UserIdentifier)
+
 	if err != nil {
-		return nil, err
+		return nil, response
 	}
+
+	// Add upload timer to document
 	doc.Timing.Upload = uploadDuration
 
-	// Poll for completion or failure with timeout
-	err = doc.Poll(options.Timeout())
+	return doc, apiResponse("document upload completed", doc.ID, resp, err)
+}
 
-	return doc, err
+// Convenience wrapper to upload a document from a given io.Reader object (document) and wait for the completed processing.
+// Additional options can be passed with a instance of UploadOptions. FileName and DocType are optional
+// and can be empty. UserIdentifier is required if Authentication method is "basic_auth".
+// Upload time is measured and stored in Timing struct (part of Document).
+func (api *APIClient) UploadAndWaitForCompletion(ctx context.Context, document io.Reader, options UploadOptions, pause time.Duration) (*Document, APIResponse) {
+	doc, resp := api.Upload(ctx, document, options)
+
+	if resp.Error != nil {
+		return doc, resp
+	}
+
+	resp = doc.Poll(ctx, pause)
+
+	return doc, resp
 }
 
 // Get Document struct from URL
-func (api *APIClient) Get(url, userIdentifier string) (*Document, error) {
-	resp, err := api.makeAPIRequest("GET", url, nil, nil, userIdentifier)
-
-	if err != nil {
-		return nil, newHTTPError(ErrHTTPGetFailed, "", err, resp)
-	}
-
+func (api *APIClient) Get(ctx context.Context, url, userIdentifier string) (*Document, APIResponse) {
+	resp, err := api.makeAPIRequest(ctx, "GET", url, nil, nil, userIdentifier)
 	defer resp.Body.Close()
 
+	if err != nil {
+		return nil, apiResponse(ErrHTTPGetFailed, "", resp, err)
+	}
+
 	if resp.StatusCode != http.StatusOK {
-		return nil, newHTTPError(ErrDocumentGet, "", err, resp)
+		return nil, apiResponse(ErrDocumentGet, "", resp, err)
 	}
 
 	contents, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, newHTTPError(ErrDocumentRead, "", err, nil)
+		return nil, apiResponse(ErrDocumentRead, "", resp, err)
 	}
 
 	var doc Document
 	if err := json.Unmarshal(contents, &doc); err != nil {
-		return nil, newHTTPError(ErrDocumentParse, doc.ID, err, nil)
+		return nil, apiResponse(ErrDocumentParse, "", resp, err)
 	}
 
 	// Add client and owner to doc object
 	doc.client = api
 	doc.Owner = userIdentifier
 
-	return &doc, nil
+	return &doc, apiResponse("document fetch completed", doc.ID, resp, err)
 }
 
 // List returns DocumentSet
-func (api *APIClient) List(options ListOptions) (*DocumentSet, error) {
+func (api *APIClient) List(ctx context.Context, options ListOptions) (*DocumentSet, APIResponse) {
 	params := map[string]interface{}{
 		"limit":  options.Limit,
 		"offset": options.Offset,
@@ -249,26 +279,26 @@ func (api *APIClient) List(options ListOptions) (*DocumentSet, error) {
 
 	u := encodeURLParams(fmt.Sprintf("%s/documents", api.Config.Endpoints.API), params)
 
-	resp, err := api.makeAPIRequest("GET", u, nil, nil, options.UserIdentifier)
+	resp, err := api.makeAPIRequest(ctx, "GET", u, nil, nil, options.UserIdentifier)
 
 	if err != nil {
-		return nil, newHTTPError(ErrHTTPGetFailed, "", err, resp)
+		return nil, apiResponse(ErrHTTPGetFailed, "", resp, err)
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, newHTTPError(ErrDocumentList, "", err, resp)
+		return nil, apiResponse(ErrDocumentList, "", resp, err)
 	}
 
 	contents, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, newHTTPError(ErrDocumentRead, "", err, nil)
+		return nil, apiResponse(ErrDocumentRead, "", resp, err)
 	}
 
 	var docs DocumentSet
 	if err := json.Unmarshal(contents, &docs); err != nil {
-		return nil, newHTTPError(ErrDocumentParse, "", err, nil)
+		return nil, apiResponse(ErrDocumentParse, "", resp, err)
 	}
 
 	// Extra round: Ingesting *APIClient into each and every doc
@@ -277,47 +307,5 @@ func (api *APIClient) List(options ListOptions) (*DocumentSet, error) {
 		d.Owner = options.UserIdentifier
 	}
 
-	return &docs, nil
-}
-
-// Search returns DocumentSet
-func (api *APIClient) Search(options SearchOptions) (*DocumentSet, error) {
-	params := map[string]interface{}{
-		"q":     options.Query,
-		"type":  options.Type,
-		"limit": options.Limit,
-		"next":  options.Offset,
-	}
-
-	u := encodeURLParams(fmt.Sprintf("%s/search", api.Config.Endpoints.API), params)
-
-	resp, err := api.makeAPIRequest("GET", u, nil, nil, options.UserIdentifier)
-
-	if err != nil {
-		return nil, newHTTPError(ErrHTTPGetFailed, "", err, resp)
-	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, newHTTPError(ErrDocumentSearch, "", err, resp)
-	}
-
-	contents, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, newHTTPError(ErrDocumentRead, "", err, nil)
-	}
-
-	var docs DocumentSet
-	if err = json.Unmarshal(contents, &docs); err != nil {
-		return nil, newHTTPError(ErrDocumentParse, "", err, nil)
-	}
-
-	// Extra round: Ingesting *APIClient into each and every doc
-	for _, d := range docs.Documents {
-		d.client = api
-		d.Owner = options.UserIdentifier
-	}
-
-	return &docs, nil
+	return &docs, apiResponse("document list completed", "", resp, err)
 }
