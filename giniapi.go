@@ -52,7 +52,7 @@ const (
 	ErrOauthAuthCodeExchange  = "failed to exchange oauth2 auth code"
 	ErrOauthCredentials       = "failed to obtain token with username/password"
 	ErrOauthParametersMissing = "oauth2 authentication requires AuthCode or Username + Password"
-	ErrUploadFailed           = "failed to upoad document"
+	ErrUploadFailed           = "failed to upload document"
 	ErrDocumentGet            = "failed to GET document object"
 	ErrDocumentParse          = "failed to parse document json"
 	ErrDocumentRead           = "failed to read document body"
@@ -199,11 +199,12 @@ func (api *APIClient) Upload(ctx context.Context, document io.Reader, options Up
 	start := time.Now()
 
 	resp, err := api.makeAPIRequest(ctx, "POST", fmt.Sprintf("%s/documents", api.Config.Endpoints.API), document, nil, options.UserIdentifier)
-	defer resp.Body.Close()
 
 	if err != nil {
 		return nil, apiResponse(ErrHTTPPostFailed, "", resp, err)
 	}
+
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
 		return nil, apiResponse(ErrUploadFailed, "", resp, errors.New(ErrUploadFailed))
@@ -243,11 +244,12 @@ func (api *APIClient) UploadAndWaitForCompletion(ctx context.Context, document i
 // Get Document struct from URL
 func (api *APIClient) Get(ctx context.Context, url, userIdentifier string) (*Document, APIResponse) {
 	resp, err := api.makeAPIRequest(ctx, "GET", url, nil, nil, userIdentifier)
-	defer resp.Body.Close()
 
 	if err != nil {
 		return nil, apiResponse(ErrHTTPGetFailed, "", resp, err)
 	}
+
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, apiResponse(ErrDocumentGet, "", resp, errors.New(ErrDocumentGet))

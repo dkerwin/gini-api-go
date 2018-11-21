@@ -133,11 +133,12 @@ func (d *Document) Update(ctx context.Context) APIResponse {
 // Delete a document
 func (d *Document) Delete(ctx context.Context) APIResponse {
 	resp, err := d.client.makeAPIRequest(ctx, "DELETE", d.Links.Document, nil, nil, d.Owner)
-	defer resp.Body.Close()
 
 	if err != nil {
 		return apiResponse(ErrHTTPDeleteFailed, d.ID, resp, err)
 	}
+
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusNoContent {
 		return apiResponse(ErrDocumentDelete, d.ID, resp, errors.New(ErrDocumentDelete))
@@ -152,11 +153,12 @@ func (d *Document) GetLayout(ctx context.Context) (*Layout, APIResponse) {
 	var layout Layout
 
 	resp, err := d.client.makeAPIRequest(ctx, "GET", d.Links.Layout, nil, nil, "")
-	defer resp.Body.Close()
 
 	if err != nil {
 		return nil, apiResponse(ErrHTTPGetFailed, d.ID, resp, err)
 	}
+
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, apiResponse(ErrDocumentLayout, d.ID, resp, errors.New(ErrDocumentLayout))
@@ -181,11 +183,12 @@ func (d *Document) GetExtractions(ctx context.Context, incubator bool) (*Extract
 	}
 
 	resp, err := d.client.makeAPIRequest(ctx, "GET", d.Links.Extractions, nil, headers, d.Owner)
-	defer resp.Body.Close()
 
 	if err != nil {
 		return nil, apiResponse(ErrHTTPGetFailed, d.ID, resp, err)
 	}
+
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, apiResponse(ErrDocumentExtractions, d.ID, resp, errors.New(ErrDocumentExtractions))
@@ -205,11 +208,12 @@ func (d *Document) GetProcessed(ctx context.Context) ([]byte, APIResponse) {
 	}
 
 	resp, err := d.client.makeAPIRequest(ctx, "GET", d.Links.Processed, nil, headers, d.Owner)
-	defer resp.Body.Close()
 
 	if err != nil {
 		return nil, apiResponse(ErrHTTPGetFailed, d.ID, resp, err)
 	}
+
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, apiResponse(ErrDocumentProcessed, d.ID, resp, errors.New(ErrDocumentProcessed))
@@ -237,11 +241,12 @@ func (d *Document) SubmitFeedback(ctx context.Context, feedback map[string]map[s
 	}
 
 	resp, err := d.client.makeAPIRequest(ctx, "PUT", d.Links.Extractions, bytes.NewReader(feedbackBody), nil, d.Owner)
-	defer resp.Body.Close()
 
 	if err != nil {
 		return apiResponse(ErrHTTPPutFailed, d.ID, resp, err)
 	}
+
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusNoContent {
 		return apiResponse(ErrDocumentFeedback, d.ID, resp, errors.New(ErrDocumentFeedback))
