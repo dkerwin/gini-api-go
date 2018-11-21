@@ -38,7 +38,15 @@ func ExampleNewClient() {
 	document, _ := os.Open("/tmp/invoice.pdf")
 
 	// Upload document to gini without doctype hint and user identifier
-	doc, _ := api.UploadAndWaitForCompletion(ctx, document, giniapi.UploadOptions{FileName: "invoice.pdf"}, 500*time.Millisecond)
+	doc, _ := api.Upload(ctx, document, giniapi.UploadOptions{FileName: "invoice.pdf"})
+
+	// Poll progress
+	resp := doc.Poll(ctx, 0)
+
+	if resp.Error != nil {
+		log.Printf("Polling Error: %s", resp.Error)
+		return
+	}
 
 	// Get extractions from our uploaded document
 	extractions, _ := doc.GetExtractions(ctx, false)
@@ -65,7 +73,15 @@ func ExampleNewClient() {
 	document, _ = os.Open("/tmp/invoice.pdf")
 
 	// Upload document to gini without doctype hint and user identifier
-	doc, _ = api.UploadAndWaitForCompletion(ctx, document, giniapi.UploadOptions{FileName: "invoice.pdf", UserIdentifier: "user123"}, 500*time.Millisecond)
+	doc, _ = api.Upload(ctx, document, giniapi.UploadOptions{FileName: "invoice.pdf", UserIdentifier: "user123"})
+
+	// Poll progress
+	resp = doc.Poll(ctx, 0)
+
+	if resp.Error != nil {
+		log.Printf("Polling Error: %s", resp.Error)
+		return
+	}
 
 	// Get extractions from our uploaded document
 	extractions, _ = doc.GetExtractions(ctx, false)
