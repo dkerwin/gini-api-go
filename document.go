@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -139,7 +140,7 @@ func (d *Document) Delete(ctx context.Context) APIResponse {
 	}
 
 	if resp.StatusCode != http.StatusNoContent {
-		return apiResponse(ErrDocumentDelete, d.ID, resp, err)
+		return apiResponse(ErrDocumentDelete, d.ID, resp, errors.New(ErrDocumentDelete))
 	}
 
 	return apiResponse("delete completed", d.ID, resp, nil)
@@ -158,7 +159,7 @@ func (d *Document) GetLayout(ctx context.Context) (*Layout, APIResponse) {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, apiResponse(ErrDocumentLayout, d.ID, resp, err)
+		return nil, apiResponse(ErrDocumentLayout, d.ID, resp, errors.New(ErrDocumentLayout))
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&layout); err != nil {
@@ -187,7 +188,7 @@ func (d *Document) GetExtractions(ctx context.Context, incubator bool) (*Extract
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, apiResponse(ErrDocumentExtractions, d.ID, resp, err)
+		return nil, apiResponse(ErrDocumentExtractions, d.ID, resp, errors.New(ErrDocumentExtractions))
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&extractions); err != nil {
@@ -211,7 +212,7 @@ func (d *Document) GetProcessed(ctx context.Context) ([]byte, APIResponse) {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, apiResponse(ErrDocumentProcessed, d.ID, resp, err)
+		return nil, apiResponse(ErrDocumentProcessed, d.ID, resp, errors.New(ErrDocumentProcessed))
 	}
 
 	buf := new(bytes.Buffer)
@@ -243,7 +244,7 @@ func (d *Document) SubmitFeedback(ctx context.Context, feedback map[string]map[s
 	}
 
 	if resp.StatusCode != http.StatusNoContent {
-		return apiResponse(ErrDocumentFeedback, d.ID, resp, err)
+		return apiResponse(ErrDocumentFeedback, d.ID, resp, errors.New(ErrDocumentFeedback))
 	}
 
 	return apiResponse("feedback completed", d.ID, resp, err)

@@ -206,7 +206,7 @@ func (api *APIClient) Upload(ctx context.Context, document io.Reader, options Up
 	}
 
 	if resp.StatusCode != http.StatusCreated {
-		return nil, apiResponse(ErrUploadFailed, "", resp, err)
+		return nil, apiResponse(ErrUploadFailed, "", resp, errors.New(ErrUploadFailed))
 	}
 
 	uploadDuration := time.Since(start)
@@ -250,7 +250,7 @@ func (api *APIClient) Get(ctx context.Context, url, userIdentifier string) (*Doc
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, apiResponse(ErrDocumentGet, "", resp, err)
+		return nil, apiResponse(ErrDocumentGet, "", resp, errors.New(ErrDocumentGet))
 	}
 
 	contents, err := ioutil.ReadAll(resp.Body)
@@ -288,7 +288,7 @@ func (api *APIClient) List(ctx context.Context, options ListOptions) (*DocumentS
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, apiResponse(ErrDocumentList, "", resp, err)
+		return nil, apiResponse(ErrDocumentList, "", resp, errors.New(ErrDocumentList))
 	}
 
 	contents, err := ioutil.ReadAll(resp.Body)
