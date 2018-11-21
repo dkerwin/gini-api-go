@@ -225,22 +225,6 @@ func (api *APIClient) Upload(ctx context.Context, document io.Reader, options Up
 	return doc, apiResponse("document upload completed", doc.ID, resp, err)
 }
 
-// Convenience wrapper to upload a document from a given io.Reader object (document) and wait for the completed processing.
-// Additional options can be passed with a instance of UploadOptions. FileName and DocType are optional
-// and can be empty. UserIdentifier is required if Authentication method is "basic_auth".
-// Upload time is measured and stored in Timing struct (part of Document).
-func (api *APIClient) UploadAndWaitForCompletion(ctx context.Context, document io.Reader, options UploadOptions, pause time.Duration) (*Document, APIResponse) {
-	doc, resp := api.Upload(ctx, document, options)
-
-	if resp.Error != nil {
-		return doc, resp
-	}
-
-	resp = doc.Poll(ctx, pause)
-
-	return doc, resp
-}
-
 // Get Document struct from URL
 func (api *APIClient) Get(ctx context.Context, url, userIdentifier string) (*Document, APIResponse) {
 	resp, err := api.makeAPIRequest(ctx, "GET", url, nil, nil, userIdentifier)
