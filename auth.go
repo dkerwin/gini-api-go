@@ -1,13 +1,14 @@
 package giniapi
 
 import (
+	"errors"
 	"golang.org/x/oauth2"
 	"net/http"
 )
 
 // APIAuthScheme interface simplifies the addition of new auth mechanisms
 type APIAuthScheme interface {
-	Authenticate(config *Config) (*http.Client, error)
+	Authenticate(config *Config) (*http.Client, APIResponse)
 }
 
 type Oauth2 struct{}
@@ -20,7 +21,7 @@ var (
 )
 
 // Authenticate satisfies the APIAuthScheme interface for Oauth2
-func (_ Oauth2) Authenticate(config *Config) (*http.Client, error) {
+func (_ Oauth2) Authenticate(config *Config) (*http.Client, APIResponse) {
 	conf := &oauth2.Config{
 		ClientID:     config.ClientID,
 		ClientSecret: config.ClientSecret,
@@ -34,21 +35,21 @@ func (_ Oauth2) Authenticate(config *Config) (*http.Client, error) {
 	if config.AuthCode != "" {
 		token, err := conf.Exchange(oauth2.NoContext, config.AuthCode)
 		if err != nil {
-			return nil, newHTTPError(ErrOauthAuthCodeExchange, "", err, nil)
+			return nil, apiResponse(ErrOauthAuthCodeExchange, "", nil, err)
 		}
 		client := conf.Client(oauth2.NoContext, token)
-		return client, nil
+		return client, apiResponse("auth code exchange succeeded", "", nil, err)
 
 	} else if config.Username != "" && config.Password != "" {
 		token, err := conf.PasswordCredentialsToken(oauth2.NoContext, config.Username, config.Password)
 		if err != nil {
-			return nil, newHTTPError(ErrOauthCredentials, "", err, nil)
+			return nil, apiResponse(ErrOauthCredentials, "", nil, err)
 		}
 		client := conf.Client(oauth2.NoContext, token)
-		return client, nil
+		return client, apiResponse("username/password auth succeeded", "", nil, err)
 	}
 
-	return nil, newHTTPError(ErrOauthParametersMissing, "", nil, nil)
+	return nil, apiResponse(ErrOauthParametersMissing, "", nil, errors.New(ErrOauthParametersMissing))
 }
 
 // BasicAuthTransport is a net/http transport that automatically adds a matching authorization
@@ -72,13 +73,13 @@ func (bat BasicAuthTransport) RoundTrip(r *http.Request) (*http.Response, error)
 }
 
 // Authenticate satisfies the APIAuthScheme interface for BasicAuth
-func (_ BasicAuth) Authenticate(config *Config) (*http.Client, error) {
+func (_ BasicAuth) Authenticate(config *Config) (*http.Client, APIResponse) {
 	client := &http.Client{Transport: BasicAuthTransport{Config: config}}
-	return client, nil
+	return client, apiResponse("basic auth", "", nil, nil)
 }
 
 // NewHTTPClient returns a custom http.Client for gini's oauth2 or basicAuth
 // based authentication. Supports auth_code and password credentials oauth flows.
-func newHTTPClient(config *Config) (*http.Client, error) {
+func newHTTPClient(config *Config) (*http.Client, APIResponse) {
 	return config.Authentication.Authenticate(config)
 }

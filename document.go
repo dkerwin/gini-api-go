@@ -2,7 +2,9 @@ package giniapi
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -57,131 +59,120 @@ type DocumentSet struct {
 
 // String representaion of a document
 func (d *Document) String() string {
-	return fmt.Sprintf(d.ID)
+	return fmt.Sprintf("%s", d.ID)
 }
 
 // Poll the progress state of a document and return nil when the processing
 // has completed (successful or failed). On timeout return error
-func (d *Document) Poll(timeout time.Duration) error {
+func (d *Document) Poll(ctx context.Context, pause time.Duration) APIResponse {
 	// store upload duration. Will be overwritten otherwise
 	uploadDuration := d.Timing.Upload
 
 	start := time.Now()
 	defer func() { d.Timing.Processing = time.Since(start) }()
 
-	docProgress := make(chan *Document, 1)
-	quit := make(chan bool, 1)
+	type CombinedResponse struct {
+		doc  *Document
+		resp APIResponse
+	}
 
-	go func() {
+	docProgress := make(chan CombinedResponse, 1)
+
+	go func(ctx context.Context) {
 		for {
 			select {
-			case <-quit:
+			case <-ctx.Done():
 				return
 			default:
-				doc, err := d.client.Get(d.Links.Document, d.Owner)
-				if err != nil {
+				doc, getResponse := d.client.Get(ctx, d.Links.Document, d.Owner)
+				docResponse := CombinedResponse{doc, getResponse}
+
+				// we need to keep polling until we hit an error or finish processing
+				if getResponse.Error != nil || (doc.Progress == "COMPLETED" || doc.Progress == "ERROR") {
+					docProgress <- docResponse
 					return
 				}
-				if doc.Progress == "COMPLETED" || doc.Progress == "ERROR" {
-					docProgress <- doc
-					return
-				}
+
+				// be a (potentially) good neighbour
+				time.Sleep(pause)
 			}
 		}
-	}()
+	}(ctx)
 
 	select {
-	case doc := <-docProgress:
-		if doc == nil {
-			return newHTTPError(ErrDocumentProcessing, "", nil, nil)
+	case answer := <-docProgress:
+		if answer.doc == nil || answer.resp.Error != nil {
+			return answer.resp
 		}
-		*d = *doc
+
+		// replace ourself with the polled document
+		*d = *answer.doc
 
 		// restore upload duration
 		d.Timing.Upload = uploadDuration
 
-		return nil
-	case <-time.After(timeout):
-		quit <- true
-		return newHTTPError(fmt.Sprintf("%s after %f", ErrDocumentTimeout, timeout.Seconds()), "", nil, nil)
+		return apiResponse("polling completed", d.ID, answer.resp.HttpResponse, nil)
+	case <-ctx.Done():
+		return apiResponse("polling aborted", d.ID, nil, ctx.Err())
 	}
 }
 
 // Update document struct from self-contained document link
-func (d *Document) Update() error {
-	newDoc, err := d.client.Get(d.Links.Document, d.Owner)
-	if err != nil {
-		return err
+func (d *Document) Update(ctx context.Context) APIResponse {
+	newDoc, resp := d.client.Get(ctx, d.Links.Document, d.Owner)
+
+	if resp.Error != nil {
+		return resp
 	}
+
 	*d = *newDoc
-	return nil
+
+	return apiResponse("update completed", d.ID, resp.HttpResponse, nil)
 }
 
 // Delete a document
-func (d *Document) Delete() error {
-	resp, err := d.client.makeAPIRequest("DELETE", d.Links.Document, nil, nil, d.Owner)
-	defer resp.Body.Close()
+func (d *Document) Delete(ctx context.Context) APIResponse {
+	resp, err := d.client.makeAPIRequest(ctx, "DELETE", d.Links.Document, nil, nil, d.Owner)
 
 	if err != nil {
-		return newHTTPError(ErrHTTPDeleteFailed, "", err, resp)
+		return apiResponse(ErrHTTPDeleteFailed, d.ID, resp, err)
 	}
+
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusNoContent {
-		return newHTTPError(ErrDocumentDelete, d.ID, err, resp)
+		return apiResponse(ErrDocumentDelete, d.ID, resp, errors.New(ErrDocumentDelete))
 	}
 
-	return nil
-}
-
-// ErrorReport creates a bug report in Gini's bugtracking system. It's a convinience way
-// to help Gini learn from difficult documents
-func (d *Document) ErrorReport(summary string, description string) error {
-	params := map[string]interface{}{
-		"summary":     summary,
-		"description": description,
-	}
-
-	u := encodeURLParams(fmt.Sprintf("%s/errorreport", d.Links.Document), params)
-
-	resp, err := d.client.makeAPIRequest("POST", u, nil, nil, d.Owner)
-	defer resp.Body.Close()
-
-	if err != nil {
-		return err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return newHTTPError(ErrDocumentReport, d.ID, err, resp)
-	}
-
-	return nil
+	return apiResponse("delete completed", d.ID, resp, nil)
 }
 
 // GetLayout returns the JSON representation of a documents layout parsed as
 // Layout struct
-func (d *Document) GetLayout() (*Layout, error) {
+func (d *Document) GetLayout(ctx context.Context) (*Layout, APIResponse) {
 	var layout Layout
 
-	resp, err := d.client.makeAPIRequest("GET", d.Links.Layout, nil, nil, "")
-	defer resp.Body.Close()
+	resp, err := d.client.makeAPIRequest(ctx, "GET", d.Links.Layout, nil, nil, "")
 
 	if err != nil {
-		return nil, err
+		return nil, apiResponse(ErrHTTPGetFailed, d.ID, resp, err)
 	}
 
+	defer resp.Body.Close()
+
 	if resp.StatusCode != http.StatusOK {
-		return nil, newHTTPError(ErrDocumentLayout, d.ID, err, resp)
+		return nil, apiResponse(ErrDocumentLayout, d.ID, resp, errors.New(ErrDocumentLayout))
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&layout); err != nil {
-		return nil, err
+		return nil, apiResponse("decoding failed", d.ID, resp, err)
 	}
 
-	return &layout, nil
+	return &layout, apiResponse("layout completed", d.ID, resp, err)
 }
 
 // GetExtractions returns a documents extractions in a Extractions struct
-func (d *Document) GetExtractions(incubator bool) (*Extractions, error) {
+func (d *Document) GetExtractions(ctx context.Context, incubator bool) (*Extractions, APIResponse) {
 	var extractions Extractions
 	var headers map[string]string
 
@@ -191,72 +182,75 @@ func (d *Document) GetExtractions(incubator bool) (*Extractions, error) {
 		}
 	}
 
-	resp, err := d.client.makeAPIRequest("GET", d.Links.Extractions, nil, headers, d.Owner)
-	defer resp.Body.Close()
+	resp, err := d.client.makeAPIRequest(ctx, "GET", d.Links.Extractions, nil, headers, d.Owner)
 
 	if err != nil {
-		return nil, err
+		return nil, apiResponse(ErrHTTPGetFailed, d.ID, resp, err)
 	}
 
+	defer resp.Body.Close()
+
 	if resp.StatusCode != http.StatusOK {
-		return nil, newHTTPError(ErrDocumentExtractions, d.ID, err, resp)
+		return nil, apiResponse(ErrDocumentExtractions, d.ID, resp, errors.New(ErrDocumentExtractions))
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&extractions); err != nil {
-		return nil, err
+		return nil, apiResponse("decoding failed", d.ID, resp, err)
 	}
 
-	return &extractions, nil
+	return &extractions, apiResponse("extractions completed", d.ID, resp, err)
 }
 
 // GetProcessed returns a byte array of the processed (rectified, optimized) document
-func (d *Document) GetProcessed() ([]byte, error) {
+func (d *Document) GetProcessed(ctx context.Context) ([]byte, APIResponse) {
 	headers := map[string]string{
 		"Accept": "application/octet-stream",
 	}
 
-	resp, err := d.client.makeAPIRequest("GET", d.Links.Processed, nil, headers, d.Owner)
-	defer resp.Body.Close()
+	resp, err := d.client.makeAPIRequest(ctx, "GET", d.Links.Processed, nil, headers, d.Owner)
 
 	if err != nil {
-		return nil, err
+		return nil, apiResponse(ErrHTTPGetFailed, d.ID, resp, err)
 	}
 
+	defer resp.Body.Close()
+
 	if resp.StatusCode != http.StatusOK {
-		return nil, newHTTPError(ErrDocumentProcessed, d.ID, err, resp)
+		return nil, apiResponse(ErrDocumentProcessed, d.ID, resp, errors.New(ErrDocumentProcessed))
 	}
 
 	buf := new(bytes.Buffer)
 	_, err = buf.ReadFrom(resp.Body)
 
 	if err != nil {
-		return nil, newHTTPError(ErrDocumentProcessed, d.ID, err, resp)
+		return nil, apiResponse(ErrDocumentProcessed, d.ID, resp, err)
 	}
 
-	return buf.Bytes(), nil
+	return buf.Bytes(), apiResponse("processed completed", d.ID, resp, err)
 }
 
 // SubmitFeedback submits feedback from map
-func (d *Document) SubmitFeedback(feedback map[string]map[string]interface{}) error {
+func (d *Document) SubmitFeedback(ctx context.Context, feedback map[string]map[string]interface{}) APIResponse {
 	feedbackMap := map[string]map[string]map[string]interface{}{
 		"feedback": feedback,
 	}
 
 	feedbackBody, err := json.Marshal(feedbackMap)
 	if err != nil {
-		return err
+		return apiResponse("encoding failed", d.ID, nil, err)
 	}
 
-	resp, err := d.client.makeAPIRequest("PUT", d.Links.Extractions, bytes.NewReader(feedbackBody), nil, d.Owner)
-	defer resp.Body.Close()
+	resp, err := d.client.makeAPIRequest(ctx, "PUT", d.Links.Extractions, bytes.NewReader(feedbackBody), nil, d.Owner)
 
 	if err != nil {
-		return err
+		return apiResponse(ErrHTTPPutFailed, d.ID, resp, err)
 	}
+
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusNoContent {
-		return newHTTPError(ErrDocumentFeedback, d.ID, err, resp)
+		return apiResponse(ErrDocumentFeedback, d.ID, resp, errors.New(ErrDocumentFeedback))
 	}
 
-	return nil
+	return apiResponse("feedback completed", d.ID, resp, err)
 }

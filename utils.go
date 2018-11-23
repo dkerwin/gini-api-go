@@ -1,18 +1,18 @@
 package giniapi
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
-	"net/http/httputil"
 	"net/url"
 	"reflect"
 	"strconv"
 )
 
 // MakeAPIRequest is a wrapper around http.NewRequest to create http
-// request and inject required headers.
-func (api *APIClient) makeAPIRequest(verb, url string, body io.Reader, headers map[string]string, userIdentifier string) (*http.Response, error) {
+// request and inject required headers, set timeout, ...
+func (api *APIClient) makeAPIRequest(ctx context.Context, verb, url string, body io.Reader, headers map[string]string, userIdentifier string) (*http.Response, error) {
 	req, err := http.NewRequest(verb, url, body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create HTTP request: %s", err)
@@ -36,26 +36,29 @@ func (api *APIClient) makeAPIRequest(verb, url string, body io.Reader, headers m
 		req.Header.Add(h, v)
 	}
 
+	// Add context to request
+	req = req.WithContext(ctx)
+
 	resp, err := api.HTTPClient.Do(req)
 
-	// Debug HTTP calls?
-	if api.Config.HTTPDebug {
-		debug, err := httputil.DumpRequest(resp.Request, false)
-		if err != nil {
-			api.Config.RequestDebug <- []byte(fmt.Sprintf("Failed to dump request: %s", err))
-		} else {
-			api.Config.RequestDebug <- debug
-		}
+	return resp, err
+}
 
-		debug, err = httputil.DumpResponse(resp, true)
-		if err != nil {
-			api.Config.ResponseDebug <- []byte(fmt.Sprintf("Failed to dump response: %s", err))
-		} else {
-			api.Config.ResponseDebug <- debug
-		}
+// apiResponse combines a HTTP response, error object and additional data
+// into a ApiResponse object
+func apiResponse(message, docId string, response *http.Response, error error) APIResponse {
+	r := APIResponse{
+		Message: message,
+		DocumentId: docId,
+		Error: error,
+		HttpResponse: response,
 	}
 
-	return resp, err
+	if response != nil {
+		r.RequestId = response.Header.Get("X-Request-Id")
+	}
+
+	return r
 }
 
 func encodeURLParams(baseURL string, queryParams map[string]interface{}) string {
